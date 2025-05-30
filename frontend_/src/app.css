@@ -1,0 +1,55 @@
+/* src/styles.css */
+
+/* Estilos para compras anuladas */
+.tr-anulada {
+    background-color: #ffebee !important; /* Rojo pastel */
+    border-left: 3px solid #ff5252;
+  }
+  
+  .tr-anulada td {
+    opacity: 0.7;
+    text-decoration: line-through;
+  }
+
+  /* App.css */
+.main-layout {
+    min-height: 100vh;
+    background: #f0f2f5;
+  }
+  
+  .app-header {
+    padding: 0 !important;
+    height: auto !important;
+    line-height: normal !important;
+    background: linear-gradient(135deg, #2c3e50, #3498db) !important;
+  }
+  
+  .app-content {
+    padding: 24px;
+    margin: 24px;
+    min-height: calc(100vh - 112px);
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  /* Asegurar tamaño completo en todos los componentes */
+  .ant-table-container {
+    height: 100% !important;
+  }
+  
+  /* Reset básico para altura completa */
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .app-content {
+      margin: 12px;
+      padding: 12px;
+      min-height: calc(100vh - 96px);
+    }
+  }

@@ -1,0 +1,12 @@
+.form-page {
+    background: linear-gradient(to right, #f2f6fc, #dbeafe);
+    min-height: 100vh;
+  }
+  
+  .form-card {
+    width: 100%;
+    max-width: 500px;
+    background-color: #ffffff;
+    border-radius: 12px;
+  }
+  
