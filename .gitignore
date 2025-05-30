@@ -1,0 +1,47 @@
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Archivos temporales y de entorno
+.env
+.env.*
+
+# Docker
+**/volumes/
+**/mysql-data/
+docker-compose.override.yml
+
+# Java / Spring Boot
+/target/
+/build/
+/*.iml
+/.idea/
+/*.class
+*.jar
+*.war
+
+# Maven
+.mvn/
+!**/mvnw
+!**/mvnw.cmd
+
+# Gradle
+.gradle/
+/build/
+!gradlew
+!gradlew.bat
+
+# Node / React
+node_modules/
+build/
+dist/
+.cache/
+.npm/
+
+# Test / Coverage
+coverage/
+*.lcov
