@@ -45,3 +45,4 @@ dist/
 # Test / Coverage
 coverage/
 *.lcov
+docker-parchela10.txt
