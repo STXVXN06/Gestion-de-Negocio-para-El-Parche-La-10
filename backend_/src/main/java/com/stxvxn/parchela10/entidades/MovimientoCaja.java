@@ -1,6 +1,7 @@
 package com.stxvxn.parchela10.entidades;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -14,10 +15,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-
-
-
 
 @Entity
 @Table(name = "movimientos_caja")
@@ -42,7 +39,7 @@ public class MovimientoCaja {
     private String estado = "activo";
 
     @NotNull
-    private LocalDateTime fecha = LocalDateTime.now();
+    private LocalDateTime fecha = LocalDateTime.now(ZoneId.of("America/Bogota"));
 
     @ManyToOne
     @JoinColumn(name = "caja_id")

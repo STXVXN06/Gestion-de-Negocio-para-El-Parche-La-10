@@ -1,5 +1,7 @@
 package com.stxvxn.parchela10.entidades;
+
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -45,6 +47,5 @@ public class Compra {
     private String estado = "activo";
 
     @NotNull
-    private LocalDateTime fecha = LocalDateTime.now();
+    private LocalDateTime fecha = LocalDateTime.now(ZoneId.of("America/Bogota"));
 }
-

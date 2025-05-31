@@ -34,26 +34,26 @@ export default function ListadoMovimientosCaja() {
     }
   };
 
-    const cargarCaja = async () => {
-        try {
-        const response = await axios.get('http://localhost:9090/api/caja');
-        console.log(response.data);
-        setMontoCaja(response.data.montoActual);
-        } catch (error) {
-        console.error('Error cargando la caja:', error);
-        }
-    };
+  const cargarCaja = async () => {
+    try {
+      const response = await axios.get('http://localhost:9090/api/caja');
+      console.log(response.data);
+      setMontoCaja(response.data.montoActual);
+    } catch (error) {
+      console.error('Error cargando la caja:', error);
+    }
+  };
 
   const handleAnular = async (id) => {
     if (window.confirm('¿Está seguro de que desea anular este movimiento?')) {
-        try {
-        
+      try {
+
         await axios.put(`http://localhost:9090/api/movimientosCaja/${id}`);
         cargarMovimientos();
         cargarCaja();
-        } catch (error) {
+      } catch (error) {
         console.error('Error anulando movimiento:', error);
-        }
+      }
 
     }
   };
@@ -63,7 +63,6 @@ export default function ListadoMovimientosCaja() {
     try {
       await axios.post('http://localhost:9090/api/movimientosCaja/manual', {
         ...values,
-        fecha: moment().format('YYYY-MM-DDTHH:mm:ss')
       });
       setModalVisible(false);
       form.resetFields();
@@ -78,25 +77,25 @@ export default function ListadoMovimientosCaja() {
 
   return (
     <div className="container">
-     <div className="header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2>Movimientos de Caja</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontWeight: 'bold', fontSize: 20 }}>
-                <div style={{ color: 'green', fontWeight: 'bold', fontSize: 20 }}>
+          <div style={{ fontWeight: 'bold', fontSize: 20 }}>
+            <div style={{ color: 'green', fontWeight: 'bold', fontSize: 20 }}>
 
-                {montoCaja !== null ? `$${montoCaja.toLocaleString()}` : 'hola'}
-                </div>
-                </div>
-                <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setModalVisible(true)}
-                >
-                Nuevo Movimiento
-                </Button>
+              {montoCaja !== null ? `$${montoCaja.toLocaleString()}` : 'hola'}
+            </div>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setModalVisible(true)}
+          >
+            Nuevo Movimiento
+          </Button>
         </div>
-        </div>
-     
+      </div>
+
       <Table
         dataSource={movimientos}
         rowKey="id"

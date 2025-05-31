@@ -1,7 +1,5 @@
 package com.stxvxn.parchela10.entidades;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -13,6 +11,8 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,11 +46,11 @@ public class Desperdicio {
     private String motivo;
 
     @NotNull
-    private LocalDateTime fecha = LocalDateTime.now();
+    private LocalDateTime fecha = LocalDateTime.now(ZoneId.of("America/Bogota"));
 
     @AssertTrue(message = "Debe ingresar al menos un producto o ingrediente")
     private boolean isValid() {
-        return (cantidadProducto != null && cantidadProducto > 0) || 
-               (cantidadIngrediente != null && cantidadIngrediente > 0);
+        return (cantidadProducto != null && cantidadProducto > 0)
+                || (cantidadIngrediente != null && cantidadIngrediente > 0);
     }
 }

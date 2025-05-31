@@ -1,8 +1,8 @@
 package com.stxvxn.parchela10.entidades;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,7 +26,7 @@ public class Pedido {
     private Long id;
 
     @NotNull
-    private LocalDateTime fecha = LocalDateTime.now();
+    private LocalDateTime fecha = LocalDateTime.now(ZoneId.of("America/Bogota"));
 
     @NotBlank
     private String estado; // PENDIENTE, ENVIADO, ENTREGADO

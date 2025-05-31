@@ -1,6 +1,5 @@
 package com.stxvxn.parchela10.servicios;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,7 +12,6 @@ import com.stxvxn.parchela10.entidades.Caja;
 import com.stxvxn.parchela10.entidades.Compra;
 import com.stxvxn.parchela10.entidades.MovimientoCaja;
 import com.stxvxn.parchela10.entidades.Pedido;
-import com.stxvxn.parchela10.repositorios.CajaRepository;
 import com.stxvxn.parchela10.repositorios.MovimientoCajaRepository;
 
 @Service
@@ -39,16 +37,14 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
     }
 
     // Método modificado para incluir validación de estado
-    private MovimientoCaja crearMovimiento(String tipo, String descripcion, Long monto, Long cajaId, 
-                                         Compra compra, Pedido pedido) {
+    private MovimientoCaja crearMovimiento(String tipo, String descripcion, Long monto, Long cajaId,
+            Compra compra, Pedido pedido) {
         Caja caja = cajaService.obtenerCajaActual().orElseThrow(() -> new RuntimeException("Caja no encontrada"));
-        
-        
+
         MovimientoCaja movimiento = new MovimientoCaja();
         movimiento.setTipo(tipo);
         movimiento.setDescripcion(descripcion);
         movimiento.setMonto(monto);
-        movimiento.setFecha(LocalDateTime.now());
         movimiento.setEstado("activo"); // Estado por defecto
         movimiento.setCaja(caja);
         movimiento.setCompra(compra);
@@ -67,7 +63,7 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
             if (!movimiento.getEstado().equals("activo")) {
                 throw new IllegalStateException("Solo se pueden anular movimientos activos");
             }
-            
+
             if (movimiento.getCompra() != null) {
                 compraService.eliminarCompra(movimiento.getCompra().getId());
             } else {
@@ -79,7 +75,7 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
                 }
                 cajaService.save(caja);
             }
-    
+
             movimiento.setEstado("ANULADO");
             return Optional.of(movimientoCajaRepository.save(movimiento));
         }
@@ -107,7 +103,6 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
 
     @Override
     public MovimientoCaja registrarMovimiento(MovimientoCaja movimiento) {
-        movimiento.setFecha(LocalDateTime.now());
         movimiento.setEstado("activo");
         return movimientoCajaRepository.save(movimiento);
     }
@@ -121,6 +116,7 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
     public MovimientoCaja registrarEgreso(String descripcion, Long monto, Long cajaId, Compra compra, Pedido pedido) {
         return crearMovimiento("EGRESO", descripcion, monto, cajaId, compra, pedido);
     }
+
     @Override
     public List<MovimientoCaja> findAll() {
         return (List<MovimientoCaja>) movimientoCajaRepository.findAll();
@@ -145,10 +141,9 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
             movimientoDb.setTipo(movimientoCaja.getTipo());
             movimientoDb.setDescripcion(movimientoCaja.getDescripcion());
             movimientoDb.setMonto(movimientoCaja.getMonto());
-            movimientoDb.setFecha(LocalDateTime.now());
             return Optional.of(movimientoCajaRepository.save(movimientoDb));
         }
-        return movimientoOptional;   
+        return movimientoOptional;
     }
 
     @Override
@@ -158,22 +153,17 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
             return Optional.empty();
         }
         MovimientoCaja movimiento = movimientoOptional.orElseThrow();
-        
-    
+
         // Marcar como ANULADO
         movimiento.setEstado("ANULADO");
         movimientoCajaRepository.save(movimiento);
         return Optional.of(movimiento);
-        
+
     }
 
     @Override
     public List<MovimientoCaja> obtenerPorCaja(Long cajaId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-
-
-
-    
 
 }

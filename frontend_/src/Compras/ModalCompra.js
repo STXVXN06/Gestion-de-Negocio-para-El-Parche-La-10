@@ -12,7 +12,6 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
     descripcion: '',
     cantidad: 0,
     costoTotal: 0,
-    fecha: new Date().toISOString()
   });
 
   const [validated, setValidated] = useState(false);
@@ -28,7 +27,7 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const form = e.currentTarget;
-    
+
     if (!form.checkValidity()) {
       e.stopPropagation();
       setValidated(true);
@@ -39,7 +38,6 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
     const payload = {
       tipo: formData.tipo,
       costoTotal: Number(formData.costoTotal),
-      fecha: new Date().toISOString(),
       ...(formData.tipo === 'INGREDIENTE' ? {
         ingrediente: { id: Number(formData.ingredienteId) },
         cantidad: Number(formData.cantidad)
@@ -59,9 +57,9 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
   };
 
   return (
-    <Modal 
-      show={show} 
-      onHide={handleClose} 
+    <Modal
+      show={show}
+      onHide={handleClose}
       size="lg"
       centered
       backdrop="static"
@@ -74,13 +72,13 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
         </div>
         <XCircle className="close-icon" onClick={handleClose} />
       </Modal.Header>
-      
+
       <Form noValidate validated={validated} onSubmit={handleSubmit}>
         <Modal.Body className="modal-body-custom">
           <Row className="g-3">
             <Col md={6}>
               <FloatingLabel controlId="tipo" label="Tipo de compra *">
-                <Form.Select 
+                <Form.Select
                   name="tipo"
                   value={formData.tipo}
                   onChange={handleChange}
@@ -168,15 +166,15 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
         </Modal.Body>
 
         <Modal.Footer className="modal-footer-custom">
-          <Button 
-            variant="outline-secondary" 
+          <Button
+            variant="outline-secondary"
             onClick={handleClose}
             className="btn-custom"
           >
             <XCircle className="me-2" /> Cancelar
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             type="submit"
             className="btn-custom"
           >
