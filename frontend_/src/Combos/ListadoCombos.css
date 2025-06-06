@@ -1,0 +1,14 @@
+/* src/components/ListadoCombos.css */
+.combo-card {
+    transition: transform 0.3s, box-shadow 0.3s;
+    height: 100%;
+}
+
+.combo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.ant-card-actions {
+    background: #fafafa !important;
+}

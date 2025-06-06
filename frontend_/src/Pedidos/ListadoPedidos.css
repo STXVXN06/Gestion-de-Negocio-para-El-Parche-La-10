@@ -1,0 +1,64 @@
+/* Estilos para las tarjetas de pedidos */
+.ant-card {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+    border: 1px solid #f0f0f0;
+}
+
+.ant-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Colores de fondo para estados */
+.bg-warning-subtle {
+    background-color: #fffbe6;
+}
+
+.bg-danger-subtle {
+    background-color: #fff2f0;
+}
+
+.bg-success-subtle {
+    background-color: #f6ffed;
+}
+
+/* Estilos para estadísticas */
+.statistic-card .ant-statistic-title {
+    font-size: 14px;
+    color: #8c8c8c;
+}
+
+.statistic-card .ant-statistic-content {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Mejoras en los filtros */
+.ant-select-selector {
+    border-radius: 6px !important;
+}
+
+/* Espaciado entre elementos */
+.mb-4 {
+    margin-bottom: 1.5rem !important;
+}
+
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 768px) {
+    .ant-statistic {
+        width: 50%;
+        margin-bottom: 1rem;
+    }
+
+    .ant-select {
+        width: 100% !important;
+        margin-bottom: 0.5rem;
+    }
+
+    .ant-btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+}

@@ -24,14 +24,20 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
+import com.stxvxn.parchela10.DTO.PedidoComboDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ProductoEnPedido;
 import com.stxvxn.parchela10.DTO.PedidoRequestDTO;
+import com.stxvxn.parchela10.entidades.Combo;
+import com.stxvxn.parchela10.entidades.ComboProducto;
 import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.entidades.Pedido;
+import com.stxvxn.parchela10.entidades.PedidoCombo;
 import com.stxvxn.parchela10.entidades.PedidoProducto;
 import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
+import com.stxvxn.parchela10.repositorios.PedidoComboRepository;
+import com.stxvxn.parchela10.servicios.ComboServiceImpl;
 import com.stxvxn.parchela10.servicios.IngredienteServiceImpl;
 import com.stxvxn.parchela10.servicios.PedidoProductoServiceImpl;
 import com.stxvxn.parchela10.servicios.PedidoServiceImpl;
@@ -58,6 +64,12 @@ public class PedidoController {
     @Autowired
     private ProductoIngredienteServiceImpl productoIngredienteService;
 
+    @Autowired
+    private ComboServiceImpl comboService;
+
+    @Autowired
+    private PedidoComboRepository pedidoComboRepo;
+
     @PostMapping
     public ResponseEntity<?> crearPedido(@RequestBody PedidoRequestDTO pedidoDTO) {
 
@@ -72,8 +84,13 @@ public class PedidoController {
         // Total
         Long total = 0L;
         List<PedidoProducto> pedidoProductos = new ArrayList<>();
+        List<PedidoCombo> pedidoCombos = new ArrayList<>();
         Map<Long, Double> ingredientesRequeridos = new HashMap<>();
 
+        // Map para errores de combos
+        Map<Long, String> combosErrors = new HashMap<>();
+
+        // 1. Procesar productos individuales
         for (PedidoRequestDTO.ProductoCantidadDTO item : pedidoDTO.getProductos()) {
             Producto producto = productoService.findById(item.getProductoId()).orElseThrow();
 
@@ -84,45 +101,91 @@ public class PedidoController {
 
             total += producto.getPrecio() * item.getCantidad();
 
-            // Acumular ingredientes requeridos
-            List<ProductoIngrediente> ingredientes = productoIngredienteService.obtenerIngredientesDeProducto(producto.getId());
-            for (ProductoIngrediente pi : ingredientes) {
-                Long ingredienteId = pi.getIngrediente().getId();
-                double requerido = pi.getCantidadNecesaria() * item.getCantidad();
-                ingredientesRequeridos.put(ingredienteId,
-                        ingredientesRequeridos.getOrDefault(ingredienteId, 0.0) + requerido);
-            }
+            // Acumular ingredientes
+            acumularIngredientes(producto, item.getCantidad(), ingredientesRequeridos);
         }
 
-        // Verificar si hay suficiente stock
-        List<String> erroresStock = new ArrayList<>();
-        for (Map.Entry<Long, Double> entry : ingredientesRequeridos.entrySet()) {
-            Long ingredienteId = entry.getKey();
-            double requerido = entry.getValue();
-            Ingrediente ing = ingredienteService.findById(ingredienteId).orElseThrow();
-            double disponible = ing.getCantidadActual();
+        // 2. Procesar combos
+        for (PedidoComboDTO comboItem : pedidoDTO.getCombos()) {
+            Optional<Combo> comboOpt = comboService.findById(comboItem.getComboId());
 
-            if (disponible < requerido) {
-                erroresStock.add(ing.getNombre()
-                        + " - Requiere: " + requerido
-                        + ", Disponible: " + disponible);
+            if (comboOpt.isEmpty()) {
+                combosErrors.put(comboItem.getComboId(), "Combo no encontrado");
+                continue;
             }
+            Combo combo = comboOpt.orElseThrow();
+            // Validar que el combo esté activo
+            if (!combo.getActivo()) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "El combo con ID " + comboItem.getComboId() + " no está disponible")
+                );
+            }
+
+            // Crear entidad PedidoCombo
+            PedidoCombo pedidoCombo = new PedidoCombo();
+            pedidoCombo.setCombo(combo);
+            pedidoCombo.setCantidad(comboItem.getCantidad());
+            pedidoCombos.add(pedidoCombo);
+
+            // Calcular precio del combo
+            Long precioCombo = comboService.calcularPrecioCombo(combo.getId());
+            total += precioCombo * comboItem.getCantidad();
+
+            // Acumular ingredientes del combo
+            acumularIngredientesCombo(combo, comboItem.getCantidad(), ingredientesRequeridos);
         }
 
+        if (!combosErrors.isEmpty()) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("mensaje", "Errores en combos solicitados");
+            response.put("detalles", combosErrors);
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        // Validación de stock (unificada para productos y combos)
+        List<String> erroresStock = validarStock(ingredientesRequeridos);
         if (!erroresStock.isEmpty()) {
-            Map<String, Object> respuesta = new HashMap<>();
-            respuesta.put("mensaje", "No hay suficiente stock para algunos ingredientes");
-            respuesta.put("detalles", erroresStock);
-            return ResponseEntity.badRequest().body(respuesta);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "mensaje", "Stock insuficiente",
+                    "detalles", erroresStock
+            ));
         }
 
         pedido.setTotal(total);
-        Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos);
+        Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos, pedidoCombos);
         if (pedidoCreado.isPresent()) {
             return ResponseEntity.ok().body(pedidoCreado.orElseThrow());
         }
         return ResponseEntity.notFound().build();
+    }
 
+    // --- Métodos auxiliares ---
+    private void acumularIngredientes(Producto producto, Integer cantidad, Map<Long, Double> ingredientesRequeridos) {
+        List<ProductoIngrediente> ingredientes = productoIngredienteService.obtenerIngredientesDeProducto(producto.getId());
+        for (ProductoIngrediente pi : ingredientes) {
+            Long ingredienteId = pi.getIngrediente().getId();
+            double requerido = pi.getCantidadNecesaria() * cantidad;
+            ingredientesRequeridos.merge(ingredienteId, requerido, Double::sum);
+        }
+    }
+
+    private void acumularIngredientesCombo(Combo combo, Integer cantidadCombo, Map<Long, Double> ingredientesRequeridos) {
+        List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
+        for (ComboProducto cp : productosCombo) {
+            acumularIngredientes(cp.getProducto(), cp.getCantidad() * cantidadCombo, ingredientesRequeridos);
+        }
+    }
+
+    private List<String> validarStock(Map<Long, Double> ingredientesRequeridos) {
+        List<String> errores = new ArrayList<>();
+        for (Map.Entry<Long, Double> entry : ingredientesRequeridos.entrySet()) {
+            Ingrediente ing = ingredienteService.findById(entry.getKey()).orElseThrow();
+            if (ing.getCantidadActual() < entry.getValue()) {
+                errores.add(String.format("%s: Requerido %.2f, Disponible %.2f",
+                        ing.getNombre(), entry.getValue(), ing.getCantidadActual()));
+            }
+        }
+        return errores;
     }
 
     @PutMapping("/{id}/estado")
@@ -139,8 +202,9 @@ public class PedidoController {
     @GetMapping
     public ResponseEntity<List<PedidoConProductosDTO>> obtenerTodos() {
         List<Pedido> pedidos = pedidoService.obtenerTodos();
+        List<PedidoConProductosDTO> dtos = new ArrayList<>();
 
-        List<PedidoConProductosDTO> dtos = pedidos.stream().map(pedido -> {
+        for (Pedido pedido : pedidos) {
             PedidoConProductosDTO dto = new PedidoConProductosDTO();
             dto.setId(pedido.getId());
             dto.setFecha(pedido.getFecha());
@@ -148,21 +212,52 @@ public class PedidoController {
             dto.setTotal(pedido.getTotal());
             dto.setDetalles(pedido.getDetalles());
 
+            // Productos individuales
             List<PedidoProducto> productos = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedido.getId());
-            List<ProductoEnPedido> productosDTO = productos.stream()
-                    .map(pp -> {
-                        ProductoEnPedido p = new ProductoEnPedido();
-                        p.setNombre(pp.getProducto().getNombre());
-                        p.setCantidad(pp.getCantidad());
-                        p.setPrecio(pp.getProducto().getPrecio());
-                        return p;
-                    }).toList();
+            dto.setProductos(mapearProductos(productos));
 
-            dto.setProductos(productosDTO);
-            return dto;
-        }).toList();
+            // Combos
+            List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedido.getId());
+            dto.setCombos(mapearCombos(combos));
 
+            dtos.add(dto);
+        }
         return ResponseEntity.ok(dtos);
+    }
+
+    private List<PedidoConProductosDTO.ProductoEnPedido> mapearProductos(List<PedidoProducto> productos) {
+        return productos.stream().map(pp -> {
+            PedidoConProductosDTO.ProductoEnPedido p = new PedidoConProductosDTO.ProductoEnPedido();
+            p.setId(pp.getProducto().getId());
+            p.setNombre(pp.getProducto().getNombre());
+            p.setPrecio(pp.getProducto().getPrecio());
+            p.setCantidad(pp.getCantidad());
+            return p;
+        }).toList();
+    }
+
+    private List<PedidoConProductosDTO.ComboEnPedido> mapearCombos(List<PedidoCombo> combos) {
+        return combos.stream().map(pc -> {
+            Combo combo = pc.getCombo();
+            PedidoConProductosDTO.ComboEnPedido c = new PedidoConProductosDTO.ComboEnPedido();
+            c.setId(combo.getId());
+            c.setNombre(combo.getNombre());
+            c.setPrecio(comboService.calcularPrecioCombo(combo.getId()));
+            c.setCantidad(pc.getCantidad());
+
+            // Productos dentro del combo
+            List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
+            c.setProductos(productosCombo.stream().map(cp -> {
+                PedidoConProductosDTO.ProductoEnPedido p = new PedidoConProductosDTO.ProductoEnPedido();
+                p.setId(cp.getProducto().getId());
+                p.setNombre(cp.getProducto().getNombre());
+                p.setPrecio(cp.getProducto().getPrecio());
+                p.setCantidad(cp.getCantidad());
+                return p;
+            }).toList());
+
+            return c;
+        }).toList();
     }
 
     @GetMapping("/{id}")
@@ -176,6 +271,9 @@ public class PedidoController {
             dto.setTotal(pedidoOptional.get().getTotal());
             dto.setDetalles(pedidoOptional.get().getDetalles());
             List<PedidoProducto> productos = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedidoOptional.orElseThrow().getId());
+            List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedidoOptional.orElseThrow().getId());
+            dto.setCombos(mapearCombos(combos));
+
             List<ProductoEnPedido> productosDTO = productos.stream()
                     .map(pp -> {
                         ProductoEnPedido p = new ProductoEnPedido();
@@ -228,7 +326,7 @@ public class PedidoController {
     public ResponseEntity<?> editarProductoEnPedido(@PathVariable Long pedidoId,
             @RequestBody EditarPedidoDTO dto) {
         try {
-            // 1. Validar pedido y su estado
+            // 1. Validar pedido y estado
             Pedido pedido = pedidoService.buscarPedidoPorId(pedidoId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido no encontrado"));
 
@@ -239,33 +337,35 @@ public class PedidoController {
                 );
             }
 
-            // 2. Obtener productos actuales y mapear cantidades
+            // 2. Obtener datos actuales
             List<PedidoProducto> productosActuales = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedidoId);
-            Map<Long, Integer> cantidadesOriginales = productosActuales.stream()
+            List<PedidoCombo> combosActuales = pedidoComboRepo.findByPedidoId(pedidoId);
+
+            Map<Long, Integer> cantidadesOriginalesProductos = productosActuales.stream()
                     .collect(Collectors.toMap(pp -> pp.getProducto().getId(), PedidoProducto::getCantidad));
 
-            // 3. Validar productos nuevos y calcular requerimientos
+            Map<Long, Integer> cantidadesOriginalesCombos = combosActuales.stream()
+                    .collect(Collectors.toMap(pc -> pc.getCombo().getId(), PedidoCombo::getCantidad));
+
+            // 3. Validar nuevos datos y calcular requerimientos
             Map<Long, Double> requerimientosIngredientes = new HashMap<>();
             Long nuevoTotal = 0L;
 
+            // Procesar productos
             for (EditarPedidoDTO.ProductoCantidadDTO item : dto.getProductos()) {
-                // Validar existencia de producto
                 Producto producto = productoService.findById(item.getProductoId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Producto no encontrado: " + item.getProductoId()));
 
-                // Validar cantidad positiva
                 if (item.getCantidad() <= 0) {
                     return ResponseEntity.badRequest().body(
-                            Map.of("error", "Cantidad inválida para el producto: " + producto.getNombre())
+                            Map.of("error", "Cantidad inválida para producto: " + producto.getNombre())
                     );
                 }
 
-                // Calcular diferencia
-                int cantidadAnterior = cantidadesOriginales.getOrDefault(item.getProductoId(), 0);
+                int cantidadAnterior = cantidadesOriginalesProductos.getOrDefault(item.getProductoId(), 0);
                 int diferencia = item.getCantidad() - cantidadAnterior;
 
-                // Calcular impacto en ingredientes solo si hay cambio
                 if (diferencia != 0) {
                     productoIngredienteService.obtenerIngredientesDeProducto(item.getProductoId())
                             .forEach(pi -> {
@@ -281,17 +381,50 @@ public class PedidoController {
                 nuevoTotal += producto.getPrecio() * item.getCantidad();
             }
 
-            // 4. Validar stock solo para requerimientos positivos
+            // Procesar combos
+            for (EditarPedidoDTO.ComboCantidadDTO comboItem : dto.getCombos()) {
+                Combo combo = comboService.findById(comboItem.getComboId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Combo no encontrado: " + comboItem.getComboId()));
+
+                if (comboItem.getCantidad() <= 0) {
+                    return ResponseEntity.badRequest().body(
+                            Map.of("error", "Cantidad inválida para combo: " + combo.getNombre())
+                    );
+                }
+
+                int cantidadAnterior = cantidadesOriginalesCombos.getOrDefault(comboItem.getComboId(), 0);
+                int diferencia = comboItem.getCantidad() - cantidadAnterior;
+
+                if (diferencia != 0) {
+                    List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
+                    for (ComboProducto cp : productosCombo) {
+                        productoIngredienteService.obtenerIngredientesDeProducto(cp.getProducto().getId())
+                                .forEach(pi -> {
+                                    double ajuste = pi.getCantidadNecesaria() * cp.getCantidad() * diferencia;
+                                    requerimientosIngredientes.merge(
+                                            pi.getIngrediente().getId(),
+                                            ajuste,
+                                            Double::sum
+                                    );
+                                });
+                    }
+                }
+
+                nuevoTotal += comboService.calcularPrecioCombo(combo.getId()) * comboItem.getCantidad();
+            }
+
+            // 4. Validar stock solo para incrementos
             List<String> erroresStock = new ArrayList<>();
-            requerimientosIngredientes.forEach((ingredienteId, requerido) -> {
-                if (requerido > 0) { // Solo validar si necesitamos más stock
+            requerimientosIngredientes.forEach((ingredienteId, ajuste) -> {
+                if (ajuste > 0) {
                     Ingrediente ingrediente = ingredienteService.findById(ingredienteId)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                            "Error en configuración de ingredientes"));
+                            "Error en ingrediente: " + ingredienteId));
 
-                    if (ingrediente.getCantidadActual() < requerido) {
+                    if (ingrediente.getCantidadActual() < ajuste) {
                         erroresStock.add(String.format("%s - Requerido: %.2f, Disponible: %.2f",
-                                ingrediente.getNombre(), requerido, ingrediente.getCantidadActual()));
+                                ingrediente.getNombre(), ajuste, ingrediente.getCantidadActual()));
                     }
                 }
             });
@@ -305,10 +438,11 @@ public class PedidoController {
                 );
             }
 
-            // 5. Actualizar relaciones de productos
+            // 5. Actualizar relaciones
             actualizarProductosPedido(pedido, dto, productosActuales);
+            actualizarCombosPedido(pedido, dto, combosActuales);
 
-            // 6. Ajustar stock de ingredientes
+            // 6. Ajustar stock
             requerimientosIngredientes.forEach((ingredienteId, ajuste) -> {
                 Ingrediente ingrediente = ingredienteService.findById(ingredienteId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR));
@@ -316,7 +450,7 @@ public class PedidoController {
                 ingredienteService.save(ingrediente);
             });
 
-            // 7. Actualizar datos del pedido
+            // 7. Actualizar pedido
             pedido.setDetalles(dto.getDetalles());
             pedido.setTotal(nuevoTotal);
             Pedido pedidoActualizado = pedidoService.actualizar(pedidoId, pedido)
@@ -329,9 +463,43 @@ public class PedidoController {
         } catch (Exception e) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error procesando la edición: " + e.getMessage()
+                    "Error procesando edición: " + e.getMessage()
             );
         }
+    }
+
+// Método para actualizar combos
+    private void actualizarCombosPedido(Pedido pedido, EditarPedidoDTO dto, List<PedidoCombo> combosActuales) {
+        Set<Long> nuevosIds = dto.getCombos().stream()
+                .map(EditarPedidoDTO.ComboCantidadDTO::getComboId)
+                .collect(Collectors.toSet());
+
+        // Eliminar combos removidos
+        combosActuales.stream()
+                .filter(pc -> !nuevosIds.contains(pc.getCombo().getId()))
+                .forEach(pc -> pedidoComboRepo.delete(pc));
+
+        // Actualizar/agregar combos
+        dto.getCombos().forEach(item -> {
+            Optional<PedidoCombo> existente = combosActuales.stream()
+                    .filter(pc -> pc.getCombo().getId().equals(item.getComboId()))
+                    .findFirst();
+
+            if (existente.isPresent()) {
+                PedidoCombo pc = existente.get();
+                pc.setCantidad(item.getCantidad());
+                pedidoComboRepo.save(pc);
+            } else {
+                Combo combo = comboService.findById(item.getComboId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+
+                PedidoCombo nuevoPC = new PedidoCombo();
+                nuevoPC.setPedido(pedido);
+                nuevoPC.setCombo(combo);
+                nuevoPC.setCantidad(item.getCantidad());
+                pedidoComboRepo.save(nuevoPC);
+            }
+        });
     }
 
     private void actualizarProductosPedido(Pedido pedido, EditarPedidoDTO dto, List<PedidoProducto> productosActuales) {

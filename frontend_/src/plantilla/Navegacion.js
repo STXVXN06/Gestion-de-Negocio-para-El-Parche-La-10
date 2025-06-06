@@ -18,9 +18,10 @@ export default function Navegacion() {
 
   const items = [
     { key: '/', label: 'Inicio', icon: <HomeOutlined /> },
+    { key: '/pedidos', label: 'Pedidos', icon: <ShoppingCartOutlined /> },
     { key: '/ingredientes', label: 'Ingredientes', icon: <AppstoreOutlined /> },
     { key: '/productos', label: 'Productos', icon: <InboxOutlined /> },
-    { key: '/pedidos', label: 'Pedidos', icon: <ShoppingCartOutlined /> },
+    { key: '/combos', label: 'Combos', icon: <AppstoreOutlined /> },
     { key: '/compras', label: 'Compras', icon: <DollarOutlined /> },
     { key: '/registroDesperdicios', label: 'Desperdicios', icon: <LineChartOutlined /> },
     { key: '/movimientosCaja', label: 'Caja', icon: <DollarOutlined /> }
@@ -59,7 +60,7 @@ export default function Navegacion() {
         <Link to="/" className="nav-brand">
           <span className="gradient-text">ParcheLa10</span>
         </Link>
-        
+
         <div className="desktop-menu-container">{menu}</div>
 
         <Button

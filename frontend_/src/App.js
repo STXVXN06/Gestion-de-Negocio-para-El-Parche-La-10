@@ -15,6 +15,7 @@ import RegistroDesperdicios from "./Desperdicios/RegistroDesperdicios";
 import HistorialDesperdicios from "./Desperdicios/HistorialDesperdicios";
 import ListadoMovimientosCaja from "./Movimientos/ListadoMovimientosCaja";
 import './app.css'
+import ListadoCombos from "./Combos/ListadoCombos";
 
 const { Header, Content } = Layout;
 
@@ -25,22 +26,23 @@ function App() {
         <Header className="app-header">
           <Navegacion />
         </Header>
-        
+
         <Content className="app-content">
           <Routes>
             <Route path="/ingredientes" element={<ListadoIngredientes />} />
             <Route path="/productos" element={<ListadoProductos />} />
-            <Route path="/agregarIngrediente" element={<AgregarIngrediente/>} />
-            <Route path="/editarIngrediente/:id" element={<EditarIngrediente/>} />
-            <Route path="/agregarProducto" element={<AgregarProducto/>}/>
-            <Route path="/editarProducto/:id" element={<EditarProducto/>} />
+            <Route path="/agregarIngrediente" element={<AgregarIngrediente />} />
+            <Route path="/editarIngrediente/:id" element={<EditarIngrediente />} />
+            <Route path="/agregarProducto" element={<AgregarProducto />} />
+            <Route path="/editarProducto/:id" element={<EditarProducto />} />
             <Route path="/pedidos" element={<ListadoPedidos />} />
-            <Route path="/agregarPedido" element={<AgregarPedido/>}/>
-            <Route path="/editarPedido/:id" element={<EditarPedido/>}/>
+            <Route path="/agregarPedido" element={<AgregarPedido />} />
+            <Route path="/editarPedido/:id" element={<EditarPedido />} />
             <Route path="/compras" element={<ListadoCompras />} />
-            <Route path="/registroDesperdicios" element={<RegistroDesperdicios/>}/>
-            <Route path="/historialDesperdicios" element={<HistorialDesperdicios/>}/>
-            <Route path="/movimientosCaja" element={<ListadoMovimientosCaja/>} />
+            <Route path="/registroDesperdicios" element={<RegistroDesperdicios />} />
+            <Route path="/historialDesperdicios" element={<HistorialDesperdicios />} />
+            <Route path="/movimientosCaja" element={<ListadoMovimientosCaja />} />
+            <Route path="/combos" element={<ListadoCombos />} />
           </Routes>
         </Content>
       </Layout>

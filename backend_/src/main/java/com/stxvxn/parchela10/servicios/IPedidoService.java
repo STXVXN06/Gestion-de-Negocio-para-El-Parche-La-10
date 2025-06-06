@@ -4,12 +4,14 @@ import java.util.List;
 import java.util.Optional;
 
 import com.stxvxn.parchela10.entidades.Pedido;
+import com.stxvxn.parchela10.entidades.PedidoCombo;
 import com.stxvxn.parchela10.entidades.PedidoProducto;
 
 public interface IPedidoService {
 
-    Optional<Pedido> crearPedido(Pedido pedido, List<PedidoProducto> pedidoProductos);
-    
+    Optional<Pedido> crearPedido(Pedido pedido, List<PedidoProducto> pedidoProductos,
+             List<PedidoCombo> pedidoCombos);
+
     Optional<Pedido> buscarPedidoPorId(Long id);
 
     List<Pedido> obtenerTodos();
@@ -18,4 +20,3 @@ public interface IPedidoService {
 
     Optional<Pedido> actualizar(Long id, Pedido pedido);
 }
-
