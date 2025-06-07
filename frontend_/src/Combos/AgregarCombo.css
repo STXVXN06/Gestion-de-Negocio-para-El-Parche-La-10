@@ -1,0 +1,31 @@
+/* src/components/AgregarCombo.css */
+/* Estilos para la vista previa del combo */
+.sticky-top {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 20px;
+}
+
+/* Estilos para la tabla de productos */
+.ant-table-small .ant-table-thead>tr>th {
+    background-color: #f0f2f5;
+}
+
+/* Estilos para la lista de productos */
+.list-group-item {
+    padding: 0.75rem 1.25rem;
+}
+
+/* Estilos para la vista previa */
+.text-success {
+    color: #28a745;
+}
+
+.text-danger {
+    color: #dc3545;
+}
+
+/* Ajustes para el formulario */
+.ant-form-item {
+    margin-bottom: 16px;
+}

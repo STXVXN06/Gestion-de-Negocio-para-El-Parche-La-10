@@ -16,6 +16,8 @@ import HistorialDesperdicios from "./Desperdicios/HistorialDesperdicios";
 import ListadoMovimientosCaja from "./Movimientos/ListadoMovimientosCaja";
 import './app.css'
 import ListadoCombos from "./Combos/ListadoCombos";
+import AgregarCombo from "./Combos/AgregarCombo";
+import EditarCombo from "./Combos/EditarCombo";
 
 const { Header, Content } = Layout;
 
@@ -43,6 +45,8 @@ function App() {
             <Route path="/historialDesperdicios" element={<HistorialDesperdicios />} />
             <Route path="/movimientosCaja" element={<ListadoMovimientosCaja />} />
             <Route path="/combos" element={<ListadoCombos />} />
+            <Route path="/agregarCombo" element={<AgregarCombo />} />
+            <Route path="/editarCombo/:id" element={<EditarCombo />} />
           </Routes>
         </Content>
       </Layout>

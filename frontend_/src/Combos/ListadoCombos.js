@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './ListadoCombos.css'; // Archivo CSS para estilos personalizados
+import { useNavigate } from 'react-router-dom';
 
 const { Meta } = Card;
 
@@ -20,6 +21,9 @@ export default function ListadoCombos() {
     const [error, setError] = useState('');
     const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
     const [comboToDelete, setComboToDelete] = useState(null);
+    const navigate = useNavigate();
+
+
 
     useEffect(() => {
         fetchCombos();
@@ -29,7 +33,14 @@ export default function ListadoCombos() {
         try {
             setLoading(true);
             const response = await axios.get('http://localhost:9090/api/combos');
-            setCombos(response.data);
+
+            // Verificar si la respuesta es un mensaje de texto
+            if (typeof response.data === 'string') {
+                setCombos([]);
+            } else {
+                setCombos(response.data);
+            }
+
             setLoading(false);
         } catch (err) {
             setError('Error al cargar los combos');
@@ -45,7 +56,7 @@ export default function ListadoCombos() {
 
     const handleDelete = async () => {
         try {
-            await axios.delete(`/api/combos/${comboToDelete.id}`);
+            await axios.delete(`http://localhost:9090/api/combos/${comboToDelete.id}`);
             notification.success({
                 message: 'Combo desactivado',
                 description: 'El combo ha sido desactivado correctamente.',
@@ -70,6 +81,7 @@ export default function ListadoCombos() {
             description: 'Redirigiendo a Agregar Combo...',
             placement: 'bottomRight'
         });
+        navigate('/agregarCombo');
         console.log("Navegar a AgregarCombo");
     };
 
@@ -80,6 +92,8 @@ export default function ListadoCombos() {
             description: `Editando combo: ${combo.nombre}`,
             placement: 'bottomRight'
         });
+
+        navigate(`/editarCombo/${combo.id}`);
         console.log(`Navegar a EditarCombo para combo ID: ${combo.id}`);
     };
 
@@ -143,27 +157,37 @@ export default function ListadoCombos() {
                                     }
                                     description={
                                         <>
-                                            <p className="text-primary fw-bold">${combo.precio.toLocaleString()}</p>
+                                            <p className="text-primary fw-bold">
+                                                ${combo.precio.toLocaleString()}
+                                            </p>
                                             <p>{combo.descripcion || "Sin descripción"}</p>
 
                                             <div className="mt-3">
                                                 <h6>Productos incluidos:</h6>
-                                                <List
-                                                    size="small"
-                                                    dataSource={combo.productos || []}
-                                                    renderItem={item => (
-                                                        <List.Item>
-                                                            <List.Item.Meta
-                                                                title={`${item.cantidad}x ${item.nombre}`}
-                                                                description={`$${item.precio.toLocaleString()} c/u`}
-                                                            />
-                                                        </List.Item>
-                                                    )}
-                                                />
+                                                {combo.productos && combo.productos.length > 0 ? (
+                                                    <List
+                                                        size="small"
+                                                        dataSource={combo.productos}
+                                                        renderItem={item => (
+                                                            <List.Item>
+                                                                <List.Item.Meta
+                                                                    title={`${item.cantidad}x ${item.nombre}`}
+                                                                    description={`$${item.precio.toLocaleString()} c/u`}
+                                                                />
+                                                            </List.Item>
+                                                        )}
+                                                    />
+                                                ) : (
+                                                    <p className="text-muted">
+                                                        Este combo no tiene productos asociados
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <p className="mt-2">
-                                                <small className="text-muted">Descuento: {combo.descuento * 100}%</small>
+                                                <small className="text-muted">
+                                                    Descuento: {combo.descuento * 100}%
+                                                </small>
                                             </p>
                                         </>
                                     }

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.stxvxn.parchela10.DTO.ComboConPrecioDTO;
 import com.stxvxn.parchela10.DTO.ComboDTO;
 import com.stxvxn.parchela10.entidades.Combo;
+import com.stxvxn.parchela10.entidades.ComboProducto;
 import com.stxvxn.parchela10.servicios.ComboServiceImpl;
 
 @RestController
@@ -81,6 +82,23 @@ public class ComboController {
             dto.setDescuento(combo.getDescuento());
             dto.setActivo(combo.getActivo());
             dto.setPrecio(comboService.calcularPrecioCombo(combo.getId())); // Calcular precio
+
+            // Obtener productos del combo
+            List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
+            List<ComboConPrecioDTO.ProductoEnComboDTO> productosDTO = new ArrayList<>();
+
+            for (ComboProducto cp : productosCombo) {
+                ComboConPrecioDTO.ProductoEnComboDTO prodDTO
+                        = new ComboConPrecioDTO.ProductoEnComboDTO();
+                prodDTO.setId(cp.getProducto().getId());
+                prodDTO.setNombre(cp.getProducto().getNombre());
+                prodDTO.setPrecio(cp.getProducto().getPrecio());
+                prodDTO.setCantidad(cp.getCantidad());
+                productosDTO.add(prodDTO);
+            }
+
+            dto.setProductos(productosDTO);
+
             dtos.add(dto);
         }
 
