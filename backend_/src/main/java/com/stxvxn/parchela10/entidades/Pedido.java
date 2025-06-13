@@ -35,4 +35,10 @@ public class Pedido {
     private Long total;
 
     private String detalles;
+
+    @NotNull
+    private Integer cantidadP1 = 0;
+
+    @NotNull
+    private Integer cantidadC1 = 0;
 }

@@ -67,9 +67,49 @@ public class PedidoServiceImpl implements IPedidoService {
     @Override
     public Optional<Pedido> crearPedido(Pedido pedido, List<PedidoProducto> pedidoProductos,
             List<PedidoCombo> pedidoCombos) {
+        // 1. Verificar stock de desechables
+        if (pedido.getCantidadP1() > 0) {
+            Ingrediente p1 = ingredienteRepository.findByNombre("P1")
+                    .orElseThrow(() -> new RuntimeException("Ingrediente P1 no encontrado"));
+
+            if (p1.getCantidadActual() < pedido.getCantidadP1()) {
+                throw new RuntimeException("Stock insuficiente de P1. Disponible: " + p1.getCantidadActual());
+            }
+        }
+
+        if (pedido.getCantidadC1() > 0) {
+            Ingrediente c1 = ingredienteRepository.findByNombre("C1")
+                    .orElseThrow(() -> new RuntimeException("Ingrediente C1 no encontrado"));
+
+            if (c1.getCantidadActual() < pedido.getCantidadC1()) {
+                throw new RuntimeException("Stock insuficiente de C1. Disponible: " + c1.getCantidadActual());
+            }
+        }
 
         pedido.setEstado("PENDIENTE");
+        long totalDesechables = 0;
+        if (pedido.getCantidadP1() != null) {
+            totalDesechables += 500 * pedido.getCantidadP1();
+        }
+        if (pedido.getCantidadC1() != null) {
+            totalDesechables += 500 * pedido.getCantidadC1();
+        }
+
+        pedido.setTotal(pedido.getTotal() + totalDesechables);
+
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
+
+        if (pedidoGuardado.getCantidadP1() > 0) {
+            Ingrediente p1 = ingredienteRepository.findByNombre("P1").orElseThrow();
+            p1.setCantidadActual(p1.getCantidadActual() - pedidoGuardado.getCantidadP1());
+            ingredienteRepository.save(p1);
+        }
+
+        if (pedidoGuardado.getCantidadC1() > 0) {
+            Ingrediente c1 = ingredienteRepository.findByNombre("C1").orElseThrow();
+            c1.setCantidadActual(c1.getCantidadActual() - pedidoGuardado.getCantidadC1());
+            ingredienteRepository.save(c1);
+        }
         for (PedidoProducto pedidoProducto : pedidoProductos) {
             pedidoProducto.setPedido(pedidoGuardado);
             pedidoProductoRepository.save(pedidoProducto);
@@ -214,6 +254,8 @@ public class PedidoServiceImpl implements IPedidoService {
             pedidoExistente.setEstado(pedido.getEstado());
             pedidoExistente.setTotal(pedido.getTotal());
             pedidoExistente.setDetalles(pedido.getDetalles());
+            pedidoExistente.setCantidadP1(pedido.getCantidadP1());
+            pedidoExistente.setCantidadC1(pedido.getCantidadC1());
             return Optional.of(pedidoRepository.save(pedidoExistente));
         }
         return Optional.empty();

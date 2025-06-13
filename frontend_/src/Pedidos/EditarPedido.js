@@ -2,9 +2,9 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Alert, List } from 'antd';
+import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined } from '@ant-design/icons';
-import './AgregarPedido.css'; // Mismo CSS que AgregarPedido
+import './AgregarPedido.css';
 
 const { TabPane } = Tabs;
 
@@ -15,7 +15,9 @@ export default function EditarPedido() {
         detalles: '',
         productos: [],
         combos: [],
-        estado: 'PENDIENTE'
+        estado: 'PENDIENTE',
+        cantidadP1: 0,
+        cantidadC1: 0
     });
 
     const [productosDisponibles, setProductosDisponibles] = useState([]);
@@ -26,18 +28,36 @@ export default function EditarPedido() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState({ tipo: '', mensajes: [] });
     const [isSaving, setIsSaving] = useState(false);
+    const [stockDesechables, setStockDesechables] = useState({ P1: 0, C1: 0 });
 
     useEffect(() => {
         cargarDatosIniciales();
+        const cargarStockDesechables = async () => {
+            try {
+                const res = await axios.get('http://localhost:9090/api/ingredientes');
+                const ingredientes = res.data;
+
+                setStockDesechables({
+                    P1: ingredientes.find(i => i.nombre === 'P1')?.cantidadActual || 0,
+                    C1: ingredientes.find(i => i.nombre === 'C1')?.cantidadActual || 0
+                });
+            } catch (error) {
+                console.error("Error cargando desechables", error);
+            }
+        };
+
+        cargarStockDesechables();
+
     }, []);
 
     const cargarDatosIniciales = async () => {
         try {
             setLoading(true);
-            const [pedidoRes, productosRes, combosRes] = await Promise.all([
+            const [pedidoRes, productosRes, combosRes, ingredientesRes] = await Promise.all([
                 axios.get(`http://localhost:9090/api/pedidos/${id}`),
                 axios.get('http://localhost:9090/api/productos'),
-                axios.get('http://localhost:9090/api/combos')
+                axios.get('http://localhost:9090/api/combos'),
+                axios.get('http://localhost:9090/api/ingredientes')
             ]);
 
             const productosEnPedido = pedidoRes.data.productos?.map(p => ({
@@ -50,11 +70,22 @@ export default function EditarPedido() {
                 cantidad: c.cantidad
             })) || [];
 
+            // Obtener stock de desechables
+            const p1 = ingredientesRes.data.find(i => i.nombre === 'P1');
+            const c1 = ingredientesRes.data.find(i => i.nombre === 'C1');
+
+            setStockDesechables({
+                P1: p1 ? p1.cantidadActual : 0,
+                C1: c1 ? c1.cantidadActual : 0
+            });
+
             setPedido({
                 ...pedidoRes.data,
                 detalles: pedidoRes.data.detalles || '',
                 productos: productosEnPedido,
-                combos: combosEnPedido
+                combos: combosEnPedido,
+                cantidadP1: pedidoRes.data.cantidadP1 || 0,
+                cantidadC1: pedidoRes.data.cantidadC1 || 0
             });
 
             setProductosDisponibles(productosRes.data.filter(p => p.activo));
@@ -150,6 +181,21 @@ export default function EditarPedido() {
         }));
     };
 
+    // Manejar cambios en los desechables
+    const actualizarCantidadP1 = (nuevaCantidad) => {
+        setPedido(prev => ({
+            ...prev,
+            cantidadP1: Math.max(nuevaCantidad, 0)
+        }));
+    };
+
+    const actualizarCantidadC1 = (nuevaCantidad) => {
+        setPedido(prev => ({
+            ...prev,
+            cantidadC1: Math.max(nuevaCantidad, 0)
+        }));
+    };
+
     // Enviar pedido actualizado al backend
     const handleGuardarCambios = async () => {
         setIsSaving(true);
@@ -157,10 +203,27 @@ export default function EditarPedido() {
 
         try {
             // Validaciones básicas
-            if (pedido.productos.length === 0 && pedido.combos.length === 0) {
+            if (pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0) {
                 setError({
                     tipo: 'VALIDACION',
-                    mensajes: ['Debe agregar al menos un producto o combo al pedido']
+                    mensajes: ['Debe agregar al menos un producto, combo o desechable al pedido']
+                });
+                return;
+            }
+
+            // Validar stock de desechables
+            if (pedido.cantidadP1 > stockDesechables.P1) {
+                setError({
+                    tipo: 'STOCK_DESECHABLES',
+                    mensajes: [`No hay suficiente stock de P1. Disponible: ${stockDesechables.P1}`]
+                });
+                return;
+            }
+
+            if (pedido.cantidadC1 > stockDesechables.C1) {
+                setError({
+                    tipo: 'STOCK_DESECHABLES',
+                    mensajes: [`No hay suficiente stock de C1. Disponible: ${stockDesechables.C1}`]
                 });
                 return;
             }
@@ -175,7 +238,9 @@ export default function EditarPedido() {
                 combos: pedido.combos.map(c => ({
                     comboId: c.comboId,
                     cantidad: c.cantidad
-                }))
+                })),
+                cantidadP1: pedido.cantidadP1,
+                cantidadC1: pedido.cantidadC1
             };
 
             // Enviar actualización
@@ -246,7 +311,10 @@ export default function EditarPedido() {
             return total + (combo?.precio || 0) * item.cantidad;
         }, 0);
 
-        return totalProductos + totalCombos;
+        // Agregar costo de desechables: P1 y C1 cuestan $500 cada uno
+        const totalDesechables = (pedido.cantidadP1 + pedido.cantidadC1) * 500;
+
+        return totalProductos + totalCombos + totalDesechables;
     };
 
     if (loading) return <div className="container mt-4">Cargando...</div>;
@@ -274,8 +342,8 @@ export default function EditarPedido() {
                 />
             )}
 
-            <div className="pedido-container">
-                <div className="seleccion-container">
+            <Row gutter={[16, 16]}>
+                <Col xs={24} md={16}>
                     <Tabs
                         activeKey={activeTab}
                         onChange={setActiveTab}
@@ -431,10 +499,10 @@ export default function EditarPedido() {
                             </div>
                         </TabPane>
                     </Tabs>
-                </div>
+                </Col>
 
-                <div className="resumen-container">
-                    <div className="resumen-pedido">
+                <Col xs={24} md={8}>
+                    <Card className="resumen-pedido" style={{ position: 'sticky', top: '20px' }}>
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <Badge count={pedido.estado} style={{
                                 backgroundColor:
@@ -452,7 +520,7 @@ export default function EditarPedido() {
                             </h3>
                         </div>
 
-                        {pedido.productos.length === 0 && pedido.combos.length === 0 ? (
+                        {pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0 ? (
                             <div className="empty-cart">
                                 <i className="fas fa-shopping-cart fa-3x"></i>
                                 <p>No hay productos o combos en este pedido</p>
@@ -539,8 +607,40 @@ export default function EditarPedido() {
                                     </div>
                                 )}
 
+                                {/* Desechables */}
+                                <div className="seccion-resumen mt-3">
+                                    <h5>Desechables</h5>
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <span>P1</span>
+                                            <small className="text-muted ms-2">(Stock: {stockDesechables.P1})</small>
+                                        </div>
+                                        <InputNumber
+                                            min={0}
+                                            max={stockDesechables.P1}
+                                            value={pedido.cantidadP1}
+                                            onChange={actualizarCantidadP1}
+                                            style={{ width: '80px' }}
+                                        />
+                                    </div>
+
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <span>C1</span>
+                                            <small className="text-muted ms-2">(Stock: {stockDesechables.C1})</small>
+                                        </div>
+                                        <InputNumber
+                                            min={0}
+                                            max={stockDesechables.C1}
+                                            value={pedido.cantidadC1}
+                                            onChange={actualizarCantidadC1}
+                                            style={{ width: '80px' }}
+                                        />
+                                    </div>
+                                </div>
+
                                 {/* Detalles adicionales */}
-                                <div className="detalles-adicionales">
+                                <div className="detalles-adicionales mt-3">
                                     <label htmlFor="detalles" className='form-label'>Notas adicionales</label>
                                     <textarea
                                         className='form-control'
@@ -553,13 +653,13 @@ export default function EditarPedido() {
                                 </div>
 
                                 {/* Botones */}
-                                <div className="botones-resumen">
+                                <div className="botones-resumen mt-3">
                                     <Button
                                         type="primary"
                                         size="large"
                                         onClick={handleGuardarCambios}
                                         loading={isSaving}
-                                        disabled={pedido.productos.length === 0 && pedido.combos.length === 0}
+                                        disabled={pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0}
                                         block
                                     >
                                         {isSaving ? 'Guardando...' : 'Guardar Cambios'}
@@ -569,15 +669,16 @@ export default function EditarPedido() {
                                         size="large"
                                         block
                                         onClick={() => navigate('/pedidos')}
+                                        className="mt-2"
                                     >
                                         Cancelar
                                     </Button>
                                 </div>
                             </div>
                         )}
-                    </div>
-                </div>
-            </div>
+                    </Card>
+                </Col>
+            </Row>
         </div>
     );
 }

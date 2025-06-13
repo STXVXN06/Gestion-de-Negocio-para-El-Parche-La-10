@@ -10,6 +10,8 @@ public class EditarPedidoDTO {
     private String detalles;
     private List<ProductoCantidadDTO> productos;
     private List<ComboCantidadDTO> combos; // Nuevo campo
+    private Integer cantidadP1;
+    private Integer cantidadC1;
 
     @Data
     public static class ProductoCantidadDTO {

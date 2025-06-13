@@ -11,10 +11,9 @@ import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.repositorios.IngredienteRepository;
 
 /**
- * Implementación del servicio para la entidad Ingrediente.
- * Proporciona métodos para realizar operaciones CRUD sobre ingredientes.
+ * Implementación del servicio para la entidad Ingrediente. Proporciona métodos
+ * para realizar operaciones CRUD sobre ingredientes.
  */
-
 @Service
 public class IngredienteServiceImpl implements IIngredienteService {
 
@@ -65,5 +64,9 @@ public class IngredienteServiceImpl implements IIngredienteService {
         return ingredienteOptional;
     }
 
-  
+    @Override
+    public Optional<Ingrediente> findByNombre(String nombre) {
+        return ingredienteRepository.findByNombre(nombre);
+    }
+
 }

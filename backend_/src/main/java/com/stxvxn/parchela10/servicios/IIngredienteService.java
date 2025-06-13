@@ -2,6 +2,7 @@ package com.stxvxn.parchela10.servicios;
 
 import java.util.List;
 import java.util.Optional;
+
 import com.stxvxn.parchela10.entidades.Ingrediente;
 
 /**
@@ -20,5 +21,6 @@ public interface IIngredienteService {
 
     Optional<Ingrediente> delete(Long id);
 
-    
+    Optional<Ingrediente> findByNombre(String nombre);
+
 }

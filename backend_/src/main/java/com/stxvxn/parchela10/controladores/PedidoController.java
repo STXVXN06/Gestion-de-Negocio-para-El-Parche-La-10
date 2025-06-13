@@ -75,6 +75,8 @@ public class PedidoController {
 
         Pedido pedido = new Pedido();
         pedido.setEstado("PENDIENTE");
+        pedido.setCantidadP1(pedidoDTO.getCantidadP1());
+        pedido.setCantidadC1(pedidoDTO.getCantidadC1());
         pedido.setDetalles(
                 pedidoDTO.getDetalles() != null && !pedidoDTO.getDetalles().isBlank()
                 ? pedidoDTO.getDetalles()
@@ -211,6 +213,8 @@ public class PedidoController {
             dto.setEstado(pedido.getEstado());
             dto.setTotal(pedido.getTotal());
             dto.setDetalles(pedido.getDetalles());
+            dto.setCantidadC1(pedido.getCantidadC1());
+            dto.setCantidadP1(pedido.getCantidadP1());
 
             // Productos individuales
             List<PedidoProducto> productos = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedido.getId());
@@ -270,6 +274,8 @@ public class PedidoController {
             dto.setEstado(pedidoOptional.get().getEstado());
             dto.setTotal(pedidoOptional.get().getTotal());
             dto.setDetalles(pedidoOptional.get().getDetalles());
+            dto.setCantidadP1(pedidoOptional.get().getCantidadP1());
+            dto.setCantidadC1(pedidoOptional.get().getCantidadC1());
             List<PedidoProducto> productos = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedidoOptional.orElseThrow().getId());
             List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedidoOptional.orElseThrow().getId());
             dto.setCombos(mapearCombos(combos));
@@ -347,6 +353,9 @@ public class PedidoController {
             Map<Long, Integer> cantidadesOriginalesCombos = combosActuales.stream()
                     .collect(Collectors.toMap(pc -> pc.getCombo().getId(), PedidoCombo::getCantidad));
 
+            Integer cantidadP1Original = pedido.getCantidadP1();
+            Integer cantidadC1Original = pedido.getCantidadC1();
+
             // 3. Validar nuevos datos y calcular requerimientos
             Map<Long, Double> requerimientosIngredientes = new HashMap<>();
             Long nuevoTotal = 0L;
@@ -413,6 +422,32 @@ public class PedidoController {
 
                 nuevoTotal += comboService.calcularPrecioCombo(combo.getId()) * comboItem.getCantidad();
             }
+
+            // 3.2 Procesar desechables
+            Integer nuevoP1 = dto.getCantidadP1() != null ? dto.getCantidadP1() : 0;
+            Integer nuevoC1 = dto.getCantidadC1() != null ? dto.getCantidadC1() : 0;
+
+            int diferenciaP1 = nuevoP1 - cantidadP1Original;
+            int diferenciaC1 = nuevoC1 - cantidadC1Original;
+
+            // Validar stock para desechables si hay aumento
+            if (diferenciaP1 > 0 || diferenciaC1 > 0) {
+                List<String> erroresDesechables = validarStockDesechables(diferenciaP1, diferenciaC1);
+                if (!erroresDesechables.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                            Map.of(
+                                    "tipo", "STOCK_INSUFICIENTE_DESECHABLES",
+                                    "detalles", erroresDesechables
+                            )
+                    );
+                }
+            }
+
+            ajustarStockDesechables(diferenciaP1, diferenciaC1);
+
+            // 7. Actualizar pedido con nuevos desechables
+            pedido.setCantidadP1(nuevoP1);
+            pedido.setCantidadC1(nuevoC1);
 
             // 4. Validar stock solo para incrementos
             List<String> erroresStock = new ArrayList<>();
@@ -533,6 +568,45 @@ public class PedidoController {
                 pedidoProductoService.guardarPedidoProducto(nuevoPP);
             }
         });
+    }
+
+    // Métodos auxiliares nuevos
+    private List<String> validarStockDesechables(int diferenciaP1, int diferenciaC1) {
+        List<String> errores = new ArrayList<>();
+
+        if (diferenciaP1 > 0) {
+            Ingrediente p1 = ingredienteService.findByNombre("P1")
+                    .orElseThrow(() -> new RuntimeException("Ingrediente P1 no encontrado"));
+            if (p1.getCantidadActual() < diferenciaP1) {
+                errores.add("P1: Requerido " + diferenciaP1 + ", Disponible " + p1.getCantidadActual());
+            }
+        }
+
+        if (diferenciaC1 > 0) {
+            Ingrediente c1 = ingredienteService.findByNombre("C1")
+                    .orElseThrow(() -> new RuntimeException("Ingrediente C1 no encontrado"));
+            if (c1.getCantidadActual() < diferenciaC1) {
+                errores.add("C1: Requerido " + diferenciaC1 + ", Disponible " + c1.getCantidadActual());
+            }
+        }
+
+        return errores;
+    }
+
+    private void ajustarStockDesechables(int diferenciaP1, int diferenciaC1) {
+        if (diferenciaP1 != 0) {
+            Ingrediente p1 = ingredienteService.findByNombre("P1")
+                    .orElseThrow(() -> new RuntimeException("Ingrediente P1 no encontrado"));
+            p1.setCantidadActual(p1.getCantidadActual() - diferenciaP1);
+            ingredienteService.save(p1);
+        }
+
+        if (diferenciaC1 != 0) {
+            Ingrediente c1 = ingredienteService.findByNombre("C1")
+                    .orElseThrow(() -> new RuntimeException("Ingrediente C1 no encontrado"));
+            c1.setCantidadActual(c1.getCantidadActual() - diferenciaC1);
+            ingredienteService.save(c1);
+        }
     }
 
 }

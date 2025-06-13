@@ -2,11 +2,12 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge } from 'antd';
+import { Tabs, Input, Button, Card, Badge, Row, Col, Collapse, InputNumber, Alert } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined } from '@ant-design/icons';
-import './AgregarPedido.css'; // Archivo CSS adicional
+import './AgregarPedido.css';
 
 const { TabPane } = Tabs;
+const { Panel } = Collapse;
 
 export default function AgregarPedido() {
   const navigate = useNavigate();
@@ -18,17 +19,31 @@ export default function AgregarPedido() {
   const [busquedaProducto, setBusquedaProducto] = useState('');
   const [busquedaCombo, setBusquedaCombo] = useState('');
   const [activeTab, setActiveTab] = useState('1');
+  const [cantidadP1, setCantidadP1] = useState(0);
+  const [cantidadC1, setCantidadC1] = useState(0);
+  const [stockDesechables, setStockDesechables] = useState({});
 
-  // Obtener productos y combos activos del backend
+  // Obtener productos, combos y stock de desechables
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const [productosResponse, combosResponse] = await Promise.all([
+        const [productosResponse, combosResponse, ingredientesResponse] = await Promise.all([
           axios.get('http://localhost:9090/api/productos'),
-          axios.get('http://localhost:9090/api/combos')
+          axios.get('http://localhost:9090/api/combos'),
+          axios.get('http://localhost:9090/api/ingredientes')
         ]);
+
         setProductosDisponibles(productosResponse.data.filter(p => p.activo));
         setCombosDisponibles(combosResponse.data.filter(c => c.activo));
+
+        // Obtener stock de desechables (P1 y C1)
+        const p1 = ingredientesResponse.data.find(i => i.nombre === 'P1');
+        const c1 = ingredientesResponse.data.find(i => i.nombre === 'C1');
+
+        setStockDesechables({
+          P1: p1 ? p1.cantidadActual : 0,
+          C1: c1 ? c1.cantidadActual : 0
+        });
       } catch (error) {
         console.error("Error cargando datos:", error);
       }
@@ -90,6 +105,17 @@ export default function AgregarPedido() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
+    // Verificar stock de desechables
+    if (cantidadP1 > stockDesechables.P1) {
+      alert(`No hay suficiente stock de P1. Disponible: ${stockDesechables.P1}`);
+      return;
+    }
+
+    if (cantidadC1 > stockDesechables.C1) {
+      alert(`No hay suficiente stock de C1. Disponible: ${stockDesechables.C1}`);
+      return;
+    }
+
     const pedidoDTO = {
       productos: productosSeleccionados
         .filter(p => p.cantidad > 0)
@@ -103,15 +129,21 @@ export default function AgregarPedido() {
           comboId: c.comboId,
           cantidad: c.cantidad
         })),
-      detalles
+      detalles,
+      cantidadP1,
+      cantidadC1
     };
 
     try {
       await axios.post('http://localhost:9090/api/pedidos', pedidoDTO);
       navigate('/pedidos');
     } catch (error) {
-      console.error("Error creando pedido:", error.response?.data);
-      alert(`Error: ${error.response?.data.mensaje || "Revise los datos"}`);
+      if (error.response?.data?.message) {
+        // Mostrar error específico del backend
+        alert(`Error: ${error.response.data.message}`);
+      } else {
+        alert("Error desconocido al crear el pedido");
+      }
     }
   };
 
@@ -125,7 +157,7 @@ export default function AgregarPedido() {
     return combosDisponibles.find(c => c.id === id);
   };
 
-  // Función CORREGIDA para calcular el total
+  // Función para calcular el total
   const calcularTotal = () => {
     const totalProductos = productosSeleccionados.reduce((total, item) => {
       const producto = obtenerInfoProducto(item.productoId);
@@ -137,7 +169,10 @@ export default function AgregarPedido() {
       return total + (combo?.precio || 0) * item.cantidad;
     }, 0);
 
-    return totalProductos + totalCombos;
+    // Agregar costo de desechables: P1 y C1 cuestan $500 cada uno
+    const totalDesechables = (cantidadP1 + cantidadC1) * 500;
+
+    return totalProductos + totalCombos + totalDesechables;
   };
 
   return (
@@ -147,8 +182,8 @@ export default function AgregarPedido() {
         <p className="text-muted">Seleccione productos y combos para agregar a su pedido</p>
       </div>
 
-      <div className="pedido-container">
-        <div className="seleccion-container">
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={16}>
           <Tabs
             defaultActiveKey="1"
             activeKey={activeTab}
@@ -297,10 +332,10 @@ export default function AgregarPedido() {
               </div>
             </TabPane>
           </Tabs>
-        </div>
+        </Col>
 
-        <div className="resumen-container">
-          <div className="resumen-pedido">
+        <Col xs={24} md={8}>
+          <Card className="resumen-pedido" style={{ position: 'sticky', top: '20px' }}>
             <h3>Resumen del Pedido</h3>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h3>Total:</h3>
@@ -397,42 +432,78 @@ export default function AgregarPedido() {
                     </ul>
                   </div>
                 )}
-
-                {/* Detalles adicionales */}
-                <div className="detalles-adicionales">
-                  <label htmlFor="detalles" className='form-label'>Notas adicionales</label>
-                  <textarea
-                    className='form-control'
-                    id="detalles"
-                    value={detalles}
-                    onChange={(e) => setDetalles(e.target.value)}
-                    placeholder="Especificaciones especiales, instrucciones de entrega, etc."
-                    rows="3"
-                  />
-                </div>
-
-                {/* Botones */}
-                <div className="botones-resumen">
-                  <Button
-                    type="primary"
-                    size="large"
-                    onClick={onSubmit}
-                    disabled={productosSeleccionados.length === 0 && combosSeleccionados.length === 0}
-                    block
-                  >
-                    Confirmar Pedido
-                  </Button>
-                  <Link to="/pedidos">
-                    <Button type="default" size="large" block>
-                      Cancelar
-                    </Button>
-                  </Link>
-                </div>
               </div>
             )}
-          </div>
-        </div>
-      </div>
+
+            {/* Desechables */}
+            <div className="seccion-resumen mt-3">
+              <h5>Desechables</h5>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <span>P1</span>
+                  {stockDesechables.P1 !== undefined && (
+                    <small className="text-muted ms-2">(Stock: {stockDesechables.P1})</small>
+                  )}
+                </div>
+                <InputNumber
+                  min={0}
+                  max={stockDesechables.P1}
+                  value={cantidadP1}
+                  onChange={setCantidadP1}
+                  style={{ width: '80px' }}
+                />
+              </div>
+
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <span>C1</span>
+                  {stockDesechables.C1 !== undefined && (
+                    <small className="text-muted ms-2">(Stock: {stockDesechables.C1})</small>
+                  )}
+                </div>
+                <InputNumber
+                  min={0}
+                  max={stockDesechables.C1}
+                  value={cantidadC1}
+                  onChange={setCantidadC1}
+                  style={{ width: '80px' }}
+                />
+              </div>
+            </div>
+
+            {/* Detalles adicionales */}
+            <div className="detalles-adicionales mt-3">
+              <label htmlFor="detalles" className='form-label'>Notas adicionales</label>
+              <textarea
+                className='form-control'
+                id="detalles"
+                value={detalles}
+                onChange={(e) => setDetalles(e.target.value)}
+                placeholder="Especificaciones especiales, instrucciones de entrega, etc."
+                rows="3"
+              />
+            </div>
+
+            {/* Botones */}
+            <div className="botones-resumen mt-3">
+              <Button
+                type="primary"
+                size="large"
+                onClick={onSubmit}
+                disabled={productosSeleccionados.length === 0 && combosSeleccionados.length === 0 && cantidadP1 === 0 && cantidadC1 === 0}
+                block
+              >
+                Confirmar Pedido
+              </Button>
+              <Link to="/pedidos">
+                <Button type="default" size="large" block className="mt-2">
+                  Cancelar
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 }

@@ -33,7 +33,7 @@ export default function ListadoPedidos() {
   const navigate = useNavigate();
   const urlBase = 'http://localhost:9090/api/pedidos';
   const [todosPedidos, setTodosPedidos] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState('todos');
+  const [filtroFecha, setFiltroFecha] = useState('hoy'); // Filtro por defecto: hoy
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [cargando, setCargando] = useState(true);
   const [estadisticas, setEstadisticas] = useState({
@@ -184,6 +184,34 @@ export default function ListadoPedidos() {
     )
   );
 
+  // Función para mostrar desechables
+  const renderDesechables = (cantidadP1, cantidadC1) => {
+    if (cantidadP1 > 0 || cantidadC1 > 0) {
+      return (
+        <div className="mt-3">
+          <h6 className="text-primary">
+            Desechables:
+          </h6>
+          <ul className="list-unstyled small mb-0">
+            {cantidadP1 > 0 && (
+              <li className="text-dark d-flex justify-content-between">
+                <span>{cantidadP1}x P1 (Platos)</span>
+                <span className="text-muted">$500 c/u</span>
+              </li>
+            )}
+            {cantidadC1 > 0 && (
+              <li className="text-dark d-flex justify-content-between">
+                <span>{cantidadC1}x C1 (Cubiertos)</span>
+                <span className="text-muted">$500 c/u</span>
+              </li>
+            )}
+          </ul>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const renderFiltros = () => (
     <Card className="mb-4 shadow-sm">
       <div className="d-flex flex-wrap align-items-center gap-3">
@@ -320,6 +348,9 @@ export default function ListadoPedidos() {
           <div className="flex-grow-1">
             {pedido.productos && pedido.productos.length > 0 && renderProductos(pedido.productos)}
             {pedido.combos && pedido.combos.length > 0 && renderCombos(pedido.combos)}
+
+            {/* Mostrar desechables */}
+            {renderDesechables(pedido.cantidadP1, pedido.cantidadC1)}
 
             {pedido.detalles && (
               <div className="mt-3">

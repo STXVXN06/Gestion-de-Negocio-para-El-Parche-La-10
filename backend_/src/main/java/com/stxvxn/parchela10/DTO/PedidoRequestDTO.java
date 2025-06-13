@@ -10,6 +10,8 @@ public class PedidoRequestDTO {
     private List<ProductoCantidadDTO> productos;
     private List<PedidoComboDTO> combos;
     private String detalles;
+    private Integer cantidadP1;
+    private Integer cantidadC1;
 
     @Data
     public static class ProductoCantidadDTO {
