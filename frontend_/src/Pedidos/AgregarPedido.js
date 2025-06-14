@@ -239,30 +239,33 @@ export default function AgregarPedido() {
                       key={producto.id}
                       className={`producto-card ${cantidad > 0 ? 'selected' : ''}`}
                       hoverable
+                      bodyStyle={{ padding: '12px' }}
                     >
                       <div className="card-content">
-                        <div className="card-header">
-                          <h5>{producto.nombre}</h5>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <h5 className="mb-1">{producto.nombre}</h5>
+                            <div className="d-flex align-items-center">
+                              <NumericFormat
+                                value={producto.precio}
+                                displayType="text"
+                                thousandSeparator=","
+                                prefix="$"
+                                className="precio"
+                              />
+                              <span className="ms-2 text-muted small">{producto.tipo}</span>
+                            </div>
+                          </div>
                           <Badge
                             count={cantidad}
                             style={{ backgroundColor: '#1890ff' }}
                             className="cantidad-badge"
                           />
                         </div>
-                        <p className="card-text">
-                          <small className="text-muted">{producto.tipo}</small><br />
-                          <NumericFormat
-                            value={producto.precio}
-                            displayType="text"
-                            thousandSeparator=","
-                            prefix="$"
-                            className="precio"
-                          />
-                        </p>
 
-                        <div className="controles-cantidad">
+                        <div className="controles-cantidad mt-2">
                           <Button
-                            type="primary"
+                            type={cantidad > 0 ? "primary" : "default"}
                             shape="circle"
                             icon={<MinusOutlined />}
                             onClick={() => actualizarCantidadProducto(producto.id, cantidad - 1)}
@@ -310,30 +313,32 @@ export default function AgregarPedido() {
                       key={combo.id}
                       className={`combo-card ${cantidad > 0 ? 'selected' : ''}`}
                       hoverable
+                      bodyStyle={{ padding: '12px' }}
                     >
                       <div className="card-content">
-                        <div className="card-header">
-                          <h5>{combo.nombre}</h5>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <h5 className="mb-1">{combo.nombre}</h5>
+                            <div>
+                              <NumericFormat
+                                value={combo.precio}
+                                displayType="text"
+                                thousandSeparator=","
+                                prefix="$"
+                                className="precio"
+                              />
+                            </div>
+                          </div>
                           <Badge
                             count={cantidad}
                             style={{ backgroundColor: '#52c41a' }}
                             className="cantidad-badge"
                           />
                         </div>
-                        <p className="card-text">{combo.descripcion}</p>
-                        <p className="card-text">
-                          <NumericFormat
-                            value={combo.precio}
-                            displayType="text"
-                            thousandSeparator=","
-                            prefix="$"
-                            className="precio"
-                          />
-                        </p>
 
-                        <div className="controles-cantidad">
+                        <div className="controles-cantidad mt-2">
                           <Button
-                            type="primary"
+                            type={cantidad > 0 ? "primary" : "default"}
                             shape="circle"
                             icon={<MinusOutlined />}
                             onClick={() => actualizarCantidadCombo(combo.id, cantidad - 1)}
@@ -364,7 +369,7 @@ export default function AgregarPedido() {
 
         <Col xs={24} md={8}>
           <Card className="resumen-pedido" style={{ position: 'sticky', top: '20px' }}>
-            <h3>Resumen del Pedido</h3>
+            <h3 className="mb-3">Resumen del Pedido</h3>
 
             {/* Desglose de costos */}
             <Descriptions bordered size="small" column={1} className="mb-3">
@@ -469,7 +474,7 @@ export default function AgregarPedido() {
                         return (
                           <li key={item.productoId} className="item-resumen">
                             <div className="item-info">
-                              <div className="d-flex justify-content-between align-items-start">
+                              <div className="d-flex justify-content-between align-items-center">
                                 <div>
                                   <span className="item-nombre">{item.cantidad}x {producto?.nombre || 'Producto eliminado'}</span>
                                   <div className="text-muted small">
@@ -495,12 +500,14 @@ export default function AgregarPedido() {
                                   type="text"
                                   icon={<MinusOutlined />}
                                   onClick={() => actualizarCantidadProducto(item.productoId, item.cantidad - 1)}
+                                  size="small"
                                 />
                                 <span className="item-cantidad">{item.cantidad}</span>
                                 <Button
                                   type="text"
                                   icon={<PlusOutlined />}
                                   onClick={() => actualizarCantidadProducto(item.productoId, item.cantidad + 1)}
+                                  size="small"
                                 />
                               </div>
                             </div>
@@ -509,6 +516,7 @@ export default function AgregarPedido() {
                               icon={<DeleteOutlined />}
                               onClick={() => quitarProducto(item.productoId)}
                               danger
+                              size="small"
                             />
                           </li>
                         );
@@ -529,7 +537,7 @@ export default function AgregarPedido() {
                         return (
                           <li key={item.comboId} className="item-resumen">
                             <div className="item-info">
-                              <div className="d-flex justify-content-between align-items-start">
+                              <div className="d-flex justify-content-between align-items-center">
                                 <div>
                                   <span className="item-nombre">{item.cantidad}x {combo?.nombre || 'Combo eliminado'}</span>
                                   <div className="text-muted small">
@@ -555,12 +563,14 @@ export default function AgregarPedido() {
                                   type="text"
                                   icon={<MinusOutlined />}
                                   onClick={() => actualizarCantidadCombo(item.comboId, item.cantidad - 1)}
+                                  size="small"
                                 />
                                 <span className="item-cantidad">{item.cantidad}</span>
                                 <Button
                                   type="text"
                                   icon={<PlusOutlined />}
                                   onClick={() => actualizarCantidadCombo(item.comboId, item.cantidad + 1)}
+                                  size="small"
                                 />
                               </div>
                             </div>
@@ -569,6 +579,7 @@ export default function AgregarPedido() {
                               icon={<DeleteOutlined />}
                               onClick={() => quitarCombo(item.comboId)}
                               danger
+                              size="small"
                             />
                           </li>
                         );
@@ -666,11 +677,12 @@ export default function AgregarPedido() {
                 onClick={onSubmit}
                 disabled={productosSeleccionados.length === 0 && combosSeleccionados.length === 0 && cantidadP1 === 0 && cantidadC1 === 0}
                 block
+                className="mb-2"
               >
                 Confirmar Pedido
               </Button>
               <Link to="/pedidos">
-                <Button type="default" size="large" block className="mt-2">
+                <Button type="default" size="large" block>
                   Cancelar
                 </Button>
               </Link>

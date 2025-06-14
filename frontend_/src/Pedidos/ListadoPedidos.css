@@ -1,64 +1,450 @@
-/* Estilos para las tarjetas de pedidos */
-.ant-card {
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
-    border: 1px solid #f0f0f0;
+/* ListadoPedidos.css */
+.listado-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.ant-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
+.page-header {
+  text-align: center;
+  margin-bottom: 30px;
 }
 
-/* Colores de fondo para estados */
-.bg-warning-subtle {
-    background-color: #fffbe6;
+.page-header h1 {
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 8px;
 }
 
-.bg-danger-subtle {
-    background-color: #fff2f0;
+.page-header p {
+  color: #7f8c8d;
+  font-size: 16px;
 }
 
-.bg-success-subtle {
-    background-color: #f6ffed;
+/* Filtros */
+.filter-card {
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-/* Estilos para estadísticas */
-.statistic-card .ant-statistic-title {
-    font-size: 14px;
-    color: #8c8c8c;
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
 }
 
-.statistic-card .ant-statistic-content {
-    font-size: 18px;
-    font-weight: 600;
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-/* Mejoras en los filtros */
-.ant-select-selector {
-    border-radius: 6px !important;
+.filter-section h5 {
+  margin: 0;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
-/* Espaciado entre elementos */
-.mb-4 {
-    margin-bottom: 1.5rem !important;
+.filter-section .ant-select {
+  min-width: 180px;
 }
 
-/* Ajustes para pantallas pequeñas */
-@media (max-width: 768px) {
-    .ant-statistic {
-        width: 50%;
-        margin-bottom: 1rem;
-    }
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
 
-    .ant-select {
-        width: 100% !important;
-        margin-bottom: 0.5rem;
-    }
+/* Tabs */
+.estado-tabs .ant-tabs-nav {
+  margin-bottom: 20px;
+}
 
-    .ant-btn {
-        width: 100%;
-        margin-bottom: 0.5rem;
-    }
+.estado-tabs .ant-tabs-tab {
+  padding: 12px 24px;
+  font-weight: 600;
+}
+
+.tab-all {
+  color: #2c3e50;
+}
+
+.tab-pending {
+  color: #fcc419;
+}
+
+.tab-delivered {
+  color: #40c057;
+}
+
+.tab-canceled {
+  color: #ff6b6b;
+}
+
+/* Tarjeta de pedido */
+.pedido-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 280px;
+}
+
+.pedido-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.pedido-header {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tags-row {
+  display: flex;
+  gap: 8px;
+}
+
+.pedido-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pedido-icon {
+  font-size: 24px;
+}
+
+.pedido-id {
+  font-weight: 700;
+  font-size: 16px;
+  color: #2c3e50;
+}
+
+.pedido-fecha {
+  font-size: 13px;
+  color: #7f8c8d;
+  display: flex;
+  align-items: center;
+}
+
+.estado-tag, .domicilio-tag {
+  padding: 5px 12px;
+  font-weight: 600;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.pedido-body {
+  padding: 0 16px 16px;
+  flex-grow: 1;
+}
+
+.pedido-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #2c3e50;
+  padding: 0 8px;
+}
+
+.total-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.detalles-container {
+  margin-top: 15px;
+}
+
+.detalles-btn {
+  width: 100%;
+  text-align: left;
+  font-weight: 600;
+  color: #3498db;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(52, 152, 219, 0.05);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.detalles-btn:hover {
+  background: rgba(52, 152, 219, 0.1);
+}
+
+.detalles-expandidos {
+  margin-top: 15px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+.section-title {
+  font-weight: 600;
+  margin: 15px 0 10px;
+  color: #555;
+  font-size: 14px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #eee;
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+.product-list,
+.combo-list,
+.desechables-list {
+  margin-bottom: 10px;
+}
+
+.product-item,
+.combo-item,
+.desechable-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.product-item:last-child,
+.combo-item:last-child,
+.desechable-item:last-child {
+  border-bottom: none;
+}
+
+.product-info,
+.combo-info {
+  display: flex;
+  gap: 8px;
+}
+
+.product-quantity,
+.combo-quantity {
+  font-weight: 600;
+  color: #2c3e50;
+  min-width: 24px;
+}
+
+.product-name,
+.combo-name {
+  color: #333;
+  font-weight: 500;
+}
+
+.product-subtotal,
+.combo-subtotal,
+.desechable-subtotal {
+  font-weight: 600;
+  color: #222;
+}
+
+.domicilio-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  align-items: center;
+}
+
+.domicilio-cost {
+  font-weight: 600;
+  color: #222;
+}
+
+.detalles-adicionales p {
+  color: #34495e;
+  margin: 0;
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.metodo-pago {
+  margin-top: 15px;
+}
+
+.pago-tag {
+  padding: 6px 12px;
+  font-weight: 600;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+/* Estado vacío */
+.empty-card {
+  border-radius: 12px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-container {
+  text-align: center;
+  padding: 50px 0;
+}
+
+/* Footer con botones */
+.pedido-footer {
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: auto;
+}
+
+.action-buttons-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.action-buttons-footer .action-btn {
+  flex: 1;
+  text-align: center;
+  min-width: 80px;
+}
+
+/* Modal de pago */
+.pago-modal .ant-modal-content {
+  border-radius: 12px;
+}
+
+.modal-content {
+  padding: 10px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h4 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.modal-total {
+  font-weight: 600;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+.modal-text {
+  color: #555;
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+.pago-options {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.pago-option {
+  padding: 0 20px;
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Responsive para pantallas pequeñas */
+@media (max-width: 576px) {
+  .action-buttons-footer {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .action-buttons-footer .action-btn {
+    width: 100%;
+  }
+  
+  .filter-section {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .filter-section .ant-select {
+    width: 100%;
+  }
+  
+  .action-buttons {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .pago-options {
+    flex-direction: column;
+  }
+  
+  .pago-option {
+    width: 100%;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 992px) {
+  .pedido-card {
+    min-height: 280px;
+  }
+}
+
+/* Ajustes de columnas */
+.ant-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ant-col {
+  display: flex;
+}
+
+/* Mantener altura consistente en la misma fila */
+.ant-row > .ant-col {
+  height: auto;
+  align-items: stretch;
+}
+
+/* Mejorar visualización de detalles */
+.detalles-expandidos .product-item,
+.detalles-expandidos .combo-item,
+.detalles-expandidos .desechable-item {
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.detalles-expandidos .product-name,
+.detalles-expandidos .combo-name {
+  font-weight: 500;
+}
+
+.ant-row > .ant-col > .pedido-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Cuerpo del card con scroll */
+.pedido-body {
+  flex-grow: 1;
 }
