@@ -16,7 +16,7 @@ public interface IPedidoService {
 
     List<Pedido> obtenerTodos();
 
-    Optional<Pedido> cambiarEstado(Long id, String estado);
+    Optional<Pedido> cambiarEstado(Long id, String estado, String metodoPago);
 
     Optional<Pedido> actualizar(Long id, Pedido pedido);
 }

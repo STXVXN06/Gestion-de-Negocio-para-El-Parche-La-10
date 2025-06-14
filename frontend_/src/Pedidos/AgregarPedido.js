@@ -2,12 +2,11 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Row, Col, Collapse, InputNumber, Alert } from 'antd';
-import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Tabs, Input, Button, Card, Badge, Row, Col, Collapse, InputNumber, Alert, Switch, Form } from 'antd';
+import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
 import './AgregarPedido.css';
 
 const { TabPane } = Tabs;
-const { Panel } = Collapse;
 
 export default function AgregarPedido() {
   const navigate = useNavigate();
@@ -22,6 +21,8 @@ export default function AgregarPedido() {
   const [cantidadP1, setCantidadP1] = useState(0);
   const [cantidadC1, setCantidadC1] = useState(0);
   const [stockDesechables, setStockDesechables] = useState({});
+  const [domicilio, setDomicilio] = useState(false);
+  const [costoDomicilio, setCostoDomicilio] = useState(2000);
 
   // Obtener productos, combos y stock de desechables
   useEffect(() => {
@@ -131,7 +132,9 @@ export default function AgregarPedido() {
         })),
       detalles,
       cantidadP1,
-      cantidadC1
+      cantidadC1,
+      domicilio,
+      costoDomicilio: domicilio ? costoDomicilio : 0
     };
 
     try {
@@ -172,7 +175,10 @@ export default function AgregarPedido() {
     // Agregar costo de desechables: P1 y C1 cuestan $500 cada uno
     const totalDesechables = (cantidadP1 + cantidadC1) * 500;
 
-    return totalProductos + totalCombos + totalDesechables;
+    // Agregar costo de domicilio si está activado
+    const totalDomicilio = domicilio ? costoDomicilio : 0;
+
+    return totalProductos + totalCombos + totalDesechables + totalDomicilio;
   };
 
   return (
@@ -469,6 +475,36 @@ export default function AgregarPedido() {
                   style={{ width: '80px' }}
                 />
               </div>
+            </div>
+
+            {/* Opciones de domicilio */}
+            <div className="seccion-resumen mt-3">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="d-flex align-items-center">
+                  <HomeOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                  <span>Domicilio</span>
+                </div>
+                <Switch 
+                  checked={domicilio} 
+                  onChange={setDomicilio}
+                  checkedChildren="Sí" 
+                  unCheckedChildren="No" 
+                />
+              </div>
+
+              {domicilio && (
+                <div className="d-flex justify-content-between align-items-center mt-2">
+                  <span>Costo de domicilio:</span>
+                  <InputNumber
+                    min={0}
+                    value={costoDomicilio}
+                    onChange={setCostoDomicilio}
+                    formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                    style={{ width: '120px' }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Detalles adicionales */}

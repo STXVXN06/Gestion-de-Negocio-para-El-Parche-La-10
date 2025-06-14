@@ -94,7 +94,6 @@ public class PedidoServiceImpl implements IPedidoService {
         if (pedido.getCantidadC1() != null) {
             totalDesechables += 500 * pedido.getCantidadC1();
         }
-
         pedido.setTotal(pedido.getTotal() + totalDesechables);
 
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
@@ -118,7 +117,8 @@ public class PedidoServiceImpl implements IPedidoService {
         // Restar el stock de los ingredientes
         List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(pedidoGuardado.getId());
         for (PedidoProducto pp : productos) {
-            List<ProductoIngrediente> ingredientes = productoIngredienteRepository.findByProductoId(pp.getProducto().getId());
+            List<ProductoIngrediente> ingredientes = productoIngredienteRepository
+                    .findByProductoId(pp.getProducto().getId());
 
             for (ProductoIngrediente pi : ingredientes) {
                 Ingrediente ing = pi.getIngrediente();
@@ -176,7 +176,7 @@ public class PedidoServiceImpl implements IPedidoService {
 
     @Transactional
     @Override
-    public Optional<Pedido> cambiarEstado(Long id, String estado) {
+    public Optional<Pedido> cambiarEstado(Long id, String estado, String metodoPago) {
         Optional<Pedido> pedidoOpt = pedidoRepository.findById(id);
 
         if (pedidoOpt.isEmpty()) {
@@ -185,13 +185,18 @@ public class PedidoServiceImpl implements IPedidoService {
 
         Pedido pedido = pedidoOpt.orElseThrow();
         pedido.setEstado(estado);
+
+        if ("ENTREGADO".equalsIgnoreCase(estado)) {
+            pedido.setMetodoPago(metodoPago); // Asignar método
+        }
         pedidoRepository.save(pedido);
 
         // Si el estado es "CANCELADO", se debe devolver el stock de los ingredientes
         if (estado.equalsIgnoreCase("CANCELADO")) {
             List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(pedido.getId());
             for (PedidoProducto pp : productos) {
-                List<ProductoIngrediente> ingredientes = productoIngredienteRepository.findByProductoId(pp.getProducto().getId());
+                List<ProductoIngrediente> ingredientes = productoIngredienteRepository
+                        .findByProductoId(pp.getProducto().getId());
 
                 for (ProductoIngrediente pi : ingredientes) {
                     Ingrediente ing = pi.getIngrediente();
@@ -210,11 +215,13 @@ public class PedidoServiceImpl implements IPedidoService {
 
                 for (ComboProducto cp : productosDelCombo) {
                     // Obtener los ingredientes de cada producto del combo
-                    List<ProductoIngrediente> ingredientes = productoIngredienteRepository.findByProductoId(cp.getProducto().getId());
+                    List<ProductoIngrediente> ingredientes = productoIngredienteRepository
+                            .findByProductoId(cp.getProducto().getId());
 
                     for (ProductoIngrediente pi : ingredientes) {
                         Ingrediente ing = pi.getIngrediente();
-                        // Cálculo: (cantidad por ingrediente) x (cantidad en combo) x (cantidad de combos pedidos)
+                        // Cálculo: (cantidad por ingrediente) x (cantidad en combo) x (cantidad de
+                        // combos pedidos)
                         double cantidadUsada = pi.getCantidadNecesaria() * cp.getCantidad() * pc.getCantidad();
                         ing.setCantidadActual(ing.getCantidadActual() + cantidadUsada);
                         ingredienteRepository.save(ing);
@@ -256,6 +263,8 @@ public class PedidoServiceImpl implements IPedidoService {
             pedidoExistente.setDetalles(pedido.getDetalles());
             pedidoExistente.setCantidadP1(pedido.getCantidadP1());
             pedidoExistente.setCantidadC1(pedido.getCantidadC1());
+            pedidoExistente.setCostoDomicilio(pedido.getCostoDomicilio());
+            pedidoExistente.setDomicilio(pedido.isDomicilio());
             return Optional.of(pedidoRepository.save(pedidoExistente));
         }
         return Optional.empty();

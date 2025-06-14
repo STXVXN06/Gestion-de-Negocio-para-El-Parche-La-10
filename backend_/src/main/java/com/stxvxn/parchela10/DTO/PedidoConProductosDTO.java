@@ -17,6 +17,9 @@ public class PedidoConProductosDTO {
     private List<ComboEnPedido> combos; // Nuevo campo
     private Integer cantidadP1;
     private Integer cantidadC1;
+    private boolean domicilio;
+    private Long costoDomicilio;
+    private String metodoPago;
 
     @Data
     public static class ProductoEnPedido {

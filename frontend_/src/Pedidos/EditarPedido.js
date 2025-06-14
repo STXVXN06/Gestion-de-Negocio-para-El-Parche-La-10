@@ -2,8 +2,8 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber } from 'antd';
-import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber, Switch } from 'antd';
+import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined  } from '@ant-design/icons';
 import './AgregarPedido.css';
 
 const { TabPane } = Tabs;
@@ -17,7 +17,9 @@ export default function EditarPedido() {
         combos: [],
         estado: 'PENDIENTE',
         cantidadP1: 0,
-        cantidadC1: 0
+        cantidadC1: 0,
+        domicilio: false,
+        costoDomicilio: 2000
     });
 
     const [productosDisponibles, setProductosDisponibles] = useState([]);
@@ -85,7 +87,9 @@ export default function EditarPedido() {
                 productos: productosEnPedido,
                 combos: combosEnPedido,
                 cantidadP1: pedidoRes.data.cantidadP1 || 0,
-                cantidadC1: pedidoRes.data.cantidadC1 || 0
+                cantidadC1: pedidoRes.data.cantidadC1 || 0,
+                domicilio: pedidoRes.data.domicilio || false,
+                costoDomicilio: pedidoRes.data.costoDomicilio || 2000
             });
 
             setProductosDisponibles(productosRes.data.filter(p => p.activo));
@@ -240,7 +244,9 @@ export default function EditarPedido() {
                     cantidad: c.cantidad
                 })),
                 cantidadP1: pedido.cantidadP1,
-                cantidadC1: pedido.cantidadC1
+                cantidadC1: pedido.cantidadC1,
+                domicilio: pedido.domicilio,
+                costoDomicilio: pedido.costoDomicilio
             };
 
             // Enviar actualización
@@ -313,8 +319,8 @@ export default function EditarPedido() {
 
         // Agregar costo de desechables: P1 y C1 cuestan $500 cada uno
         const totalDesechables = (pedido.cantidadP1 + pedido.cantidadC1) * 500;
-
-        return totalProductos + totalCombos + totalDesechables;
+        const totalDomicilio = pedido.domicilio ? pedido.costoDomicilio : 0;
+        return totalProductos + totalCombos + totalDesechables + totalDomicilio;
     };
 
     if (loading) return <div className="container mt-4">Cargando...</div>;
@@ -638,6 +644,45 @@ export default function EditarPedido() {
                                         />
                                     </div>
                                 </div>
+
+                                <div className="seccion-resumen mt-3">
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <div className="d-flex align-items-center">
+                                            <HomeOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                                            <span>Domicilio</span>
+                                        </div>
+                                        <Switch
+                                            checked={pedido.domicilio}
+                                            onChange={checked => setPedido(prev => ({
+                                                ...prev,
+                                                domicilio: checked
+                                            }))}
+                                            checkedChildren="Sí"
+                                            unCheckedChildren="No"
+                                        />
+                                    </div>
+
+                                    {pedido.domicilio && (
+                                        <div className="d-flex justify-content-between align-items-center mt-2">
+                                            <span>Costo de domicilio:</span>
+                                            <InputNumber
+                                                min={0}
+                                                value={pedido.costoDomicilio}
+                                                onChange={value => setPedido(prev => ({
+                                                    ...prev,
+                                                    costoDomicilio: value
+                                                }))}
+                                                formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                                style={{ width: '120px' }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+
+
+
 
                                 {/* Detalles adicionales */}
                                 <div className="detalles-adicionales mt-3">

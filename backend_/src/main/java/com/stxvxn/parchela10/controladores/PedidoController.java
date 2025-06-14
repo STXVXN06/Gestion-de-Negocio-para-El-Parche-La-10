@@ -2,6 +2,7 @@ package com.stxvxn.parchela10.controladores;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -79,8 +80,8 @@ public class PedidoController {
         pedido.setCantidadC1(pedidoDTO.getCantidadC1());
         pedido.setDetalles(
                 pedidoDTO.getDetalles() != null && !pedidoDTO.getDetalles().isBlank()
-                ? pedidoDTO.getDetalles()
-                : "Sin detalles" // Valor por defecto
+                        ? pedidoDTO.getDetalles()
+                        : "Sin detalles" // Valor por defecto
         );
 
         // Total
@@ -119,8 +120,7 @@ public class PedidoController {
             // Validar que el combo esté activo
             if (!combo.getActivo()) {
                 return ResponseEntity.badRequest().body(
-                        Map.of("error", "El combo con ID " + comboItem.getComboId() + " no está disponible")
-                );
+                        Map.of("error", "El combo con ID " + comboItem.getComboId() + " no está disponible"));
             }
 
             // Crear entidad PedidoCombo
@@ -149,11 +149,27 @@ public class PedidoController {
         if (!erroresStock.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "mensaje", "Stock insuficiente",
-                    "detalles", erroresStock
-            ));
+                    "detalles", erroresStock));
         }
 
+        pedido.setDomicilio(pedidoDTO.isDomicilio());
+        if (pedido.isDomicilio() && pedidoDTO.getCostoDomicilio() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "El costo de domicilio es obligatorio cuando se solicita domicilio"));
+
+        }
+        if (pedido.isDomicilio()) {
+            pedido.setCostoDomicilio(pedidoDTO.getCostoDomicilio() != null
+                    ? pedidoDTO.getCostoDomicilio()
+                    : 2000L); // Valor por defecto si no se especifica
+        } else {
+            pedido.setCostoDomicilio(0L); // Si no es domicilio, el costo es 0
+        }
+
+        total += pedido.getCostoDomicilio();
+
         pedido.setTotal(total);
+
         Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos, pedidoCombos);
         if (pedidoCreado.isPresent()) {
             return ResponseEntity.ok().body(pedidoCreado.orElseThrow());
@@ -163,7 +179,8 @@ public class PedidoController {
 
     // --- Métodos auxiliares ---
     private void acumularIngredientes(Producto producto, Integer cantidad, Map<Long, Double> ingredientesRequeridos) {
-        List<ProductoIngrediente> ingredientes = productoIngredienteService.obtenerIngredientesDeProducto(producto.getId());
+        List<ProductoIngrediente> ingredientes = productoIngredienteService
+                .obtenerIngredientesDeProducto(producto.getId());
         for (ProductoIngrediente pi : ingredientes) {
             Long ingredienteId = pi.getIngrediente().getId();
             double requerido = pi.getCantidadNecesaria() * cantidad;
@@ -171,7 +188,8 @@ public class PedidoController {
         }
     }
 
-    private void acumularIngredientesCombo(Combo combo, Integer cantidadCombo, Map<Long, Double> ingredientesRequeridos) {
+    private void acumularIngredientesCombo(Combo combo, Integer cantidadCombo,
+            Map<Long, Double> ingredientesRequeridos) {
         List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
         for (ComboProducto cp : productosCombo) {
             acumularIngredientes(cp.getProducto(), cp.getCantidad() * cantidadCombo, ingredientesRequeridos);
@@ -191,8 +209,14 @@ public class PedidoController {
     }
 
     @PutMapping("/{id}/estado")
-    public ResponseEntity<Pedido> cambiarEstado(@PathVariable Long id, @RequestParam String estado) {
-        Optional<Pedido> pedidoOptional = pedidoService.cambiarEstado(id, estado);
+    public ResponseEntity<Pedido> cambiarEstado(@PathVariable Long id,
+            @RequestParam String estado,
+            @RequestParam(required = false) String metodoPago) {
+
+        if ("ENTREGADO".equalsIgnoreCase(estado) && (metodoPago == null || metodoPago.isBlank())) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        Optional<Pedido> pedidoOptional = pedidoService.cambiarEstado(id, estado, metodoPago);
 
         if (pedidoOptional.isPresent()) {
             return ResponseEntity.ok().body(pedidoOptional.orElseThrow());
@@ -215,6 +239,9 @@ public class PedidoController {
             dto.setDetalles(pedido.getDetalles());
             dto.setCantidadC1(pedido.getCantidadC1());
             dto.setCantidadP1(pedido.getCantidadP1());
+            dto.setDomicilio(pedido.isDomicilio());
+            dto.setCostoDomicilio(pedido.getCostoDomicilio());
+            dto.setMetodoPago(pedido.getMetodoPago());
 
             // Productos individuales
             List<PedidoProducto> productos = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedido.getId());
@@ -276,7 +303,12 @@ public class PedidoController {
             dto.setDetalles(pedidoOptional.get().getDetalles());
             dto.setCantidadP1(pedidoOptional.get().getCantidadP1());
             dto.setCantidadC1(pedidoOptional.get().getCantidadC1());
-            List<PedidoProducto> productos = pedidoProductoService.obtenerPedidoProductosPorPedidoId(pedidoOptional.orElseThrow().getId());
+            dto.setDomicilio(pedidoOptional.get().isDomicilio());
+            dto.setCostoDomicilio(pedidoOptional.get().getCostoDomicilio());
+            dto.setMetodoPago(pedidoOptional.get().getMetodoPago());
+
+            List<PedidoProducto> productos = pedidoProductoService
+                    .obtenerPedidoProductosPorPedidoId(pedidoOptional.orElseThrow().getId());
             List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedidoOptional.orElseThrow().getId());
             dto.setCombos(mapearCombos(combos));
 
@@ -308,6 +340,11 @@ public class PedidoController {
             dto.setEstado(pedido.getEstado());
             dto.setTotal(pedido.getTotal());
             dto.setDetalles(pedido.getDetalles());
+            dto.setCantidadP1(pedido.getCantidadP1());
+            dto.setCantidadC1(pedido.getCantidadC1());
+            dto.setDomicilio(pedido.isDomicilio());
+            dto.setCostoDomicilio(pedido.getCostoDomicilio());
+            dto.setMetodoPago(pedido.getMetodoPago());
 
             List<PedidoConProductosDTO.ProductoEnPedido> listaProductos = productos.stream().map(pp -> {
                 PedidoConProductosDTO.ProductoEnPedido p = new PedidoConProductosDTO.ProductoEnPedido();
@@ -339,8 +376,7 @@ public class PedidoController {
             if (pedido.getEstado().equalsIgnoreCase("ENTREGADO")
                     || pedido.getEstado().equalsIgnoreCase("CANCELADO")) {
                 return ResponseEntity.badRequest().body(
-                        Map.of("error", "No se puede editar un pedido " + pedido.getEstado())
-                );
+                        Map.of("error", "No se puede editar un pedido " + pedido.getEstado()));
             }
 
             // 2. Obtener datos actuales
@@ -360,16 +396,49 @@ public class PedidoController {
             Map<Long, Double> requerimientosIngredientes = new HashMap<>();
             Long nuevoTotal = 0L;
 
+            // Identificar productos eliminados
+            Set<Long> productosEliminados = new HashSet<>(cantidadesOriginalesProductos.keySet());
+            dto.getProductos().forEach(item -> productosEliminados.remove(item.getProductoId()));
+
+            // Identificar combos eliminados
+            Set<Long> combosEliminados = new HashSet<>(cantidadesOriginalesCombos.keySet());
+            dto.getCombos().forEach(item -> combosEliminados.remove(item.getComboId()));
+
+            // Procesar productos eliminados
+            for (Long productoId : productosEliminados) {
+                int cantidadOriginal = cantidadesOriginalesProductos.get(productoId);
+                acumularDiferenciaIngredientes(productoId, -cantidadOriginal, requerimientosIngredientes);
+            }
+
+            // Procesar combos eliminados
+            for (Long comboId : combosEliminados) {
+                int cantidadOriginal = cantidadesOriginalesCombos.get(comboId);
+                Combo combo = comboService.findById(comboId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+
+                List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(comboId);
+                for (ComboProducto cp : productosCombo) {
+                    List<ProductoIngrediente> ingredientes = productoIngredienteService
+                            .obtenerIngredientesDeProducto(cp.getProducto().getId());
+
+                    for (ProductoIngrediente pi : ingredientes) {
+                        Ingrediente ing = pi.getIngrediente();
+                        double cantidadDevuelta = pi.getCantidadNecesaria() * cp.getCantidad() * cantidadOriginal;
+                        ing.setCantidadActual(ing.getCantidadActual() + cantidadDevuelta);
+                        ingredienteService.save(ing);
+                    }
+                }
+            }
+
             // Procesar productos
             for (EditarPedidoDTO.ProductoCantidadDTO item : dto.getProductos()) {
                 Producto producto = productoService.findById(item.getProductoId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Producto no encontrado: " + item.getProductoId()));
+                                "Producto no encontrado: " + item.getProductoId()));
 
                 if (item.getCantidad() <= 0) {
                     return ResponseEntity.badRequest().body(
-                            Map.of("error", "Cantidad inválida para producto: " + producto.getNombre())
-                    );
+                            Map.of("error", "Cantidad inválida para producto: " + producto.getNombre()));
                 }
 
                 int cantidadAnterior = cantidadesOriginalesProductos.getOrDefault(item.getProductoId(), 0);
@@ -382,8 +451,7 @@ public class PedidoController {
                                 requerimientosIngredientes.merge(
                                         pi.getIngrediente().getId(),
                                         ajuste,
-                                        Double::sum
-                                );
+                                        Double::sum);
                             });
                 }
 
@@ -394,12 +462,11 @@ public class PedidoController {
             for (EditarPedidoDTO.ComboCantidadDTO comboItem : dto.getCombos()) {
                 Combo combo = comboService.findById(comboItem.getComboId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Combo no encontrado: " + comboItem.getComboId()));
+                                "Combo no encontrado: " + comboItem.getComboId()));
 
                 if (comboItem.getCantidad() <= 0) {
                     return ResponseEntity.badRequest().body(
-                            Map.of("error", "Cantidad inválida para combo: " + combo.getNombre())
-                    );
+                            Map.of("error", "Cantidad inválida para combo: " + combo.getNombre()));
                 }
 
                 int cantidadAnterior = cantidadesOriginalesCombos.getOrDefault(comboItem.getComboId(), 0);
@@ -414,8 +481,7 @@ public class PedidoController {
                                     requerimientosIngredientes.merge(
                                             pi.getIngrediente().getId(),
                                             ajuste,
-                                            Double::sum
-                                    );
+                                            Double::sum);
                                 });
                     }
                 }
@@ -437,9 +503,7 @@ public class PedidoController {
                     return ResponseEntity.status(HttpStatus.CONFLICT).body(
                             Map.of(
                                     "tipo", "STOCK_INSUFICIENTE_DESECHABLES",
-                                    "detalles", erroresDesechables
-                            )
-                    );
+                                    "detalles", erroresDesechables));
                 }
             }
 
@@ -449,13 +513,21 @@ public class PedidoController {
             pedido.setCantidadP1(nuevoP1);
             pedido.setCantidadC1(nuevoC1);
 
+            pedido.setDomicilio(dto.isDomicilio());
+            pedido.setCostoDomicilio(dto.getCostoDomicilio());
+            nuevoTotal += (nuevoP1 + nuevoC1) * 500;
+
+            if (dto.isDomicilio()) {
+                nuevoTotal += dto.getCostoDomicilio();
+            }
+
             // 4. Validar stock solo para incrementos
             List<String> erroresStock = new ArrayList<>();
             requerimientosIngredientes.forEach((ingredienteId, ajuste) -> {
                 if (ajuste > 0) {
                     Ingrediente ingrediente = ingredienteService.findById(ingredienteId)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                            "Error en ingrediente: " + ingredienteId));
+                                    "Error en ingrediente: " + ingredienteId));
 
                     if (ingrediente.getCantidadActual() < ajuste) {
                         erroresStock.add(String.format("%s - Requerido: %.2f, Disponible: %.2f",
@@ -468,9 +540,7 @@ public class PedidoController {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(
                         Map.of(
                                 "tipo", "STOCK_INSUFICIENTE",
-                                "detalles", erroresStock
-                        )
-                );
+                                "detalles", erroresStock));
             }
 
             // 5. Actualizar relaciones
@@ -498,12 +568,24 @@ public class PedidoController {
         } catch (Exception e) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error procesando edición: " + e.getMessage()
-            );
+                    "Error procesando edición: " + e.getMessage());
         }
     }
 
-// Método para actualizar combos
+    private void acumularDiferenciaIngredientes(Long productoId, int diferencia,
+            Map<Long, Double> requerimientosIngredientes) {
+
+        List<ProductoIngrediente> ingredientes = productoIngredienteService
+                .obtenerIngredientesDeProducto(productoId);
+
+        for (ProductoIngrediente pi : ingredientes) {
+            Long ingredienteId = pi.getIngrediente().getId();
+            double ajuste = pi.getCantidadNecesaria() * diferencia;
+            requerimientosIngredientes.merge(ingredienteId, ajuste, Double::sum);
+        }
+    }
+
+    // Método para actualizar combos
     private void actualizarCombosPedido(Pedido pedido, EditarPedidoDTO dto, List<PedidoCombo> combosActuales) {
         Set<Long> nuevosIds = dto.getCombos().stream()
                 .map(EditarPedidoDTO.ComboCantidadDTO::getComboId)

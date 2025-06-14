@@ -11,7 +11,8 @@ import {
   Select,
   Spin,
   Empty,
-  Tag
+  Tag,
+  Modal
 } from 'antd';
 import {
   FilterOutlined,
@@ -20,12 +21,14 @@ import {
   InfoCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ShoppingOutlined
+  ShoppingOutlined,
+  DollarOutlined,
+  TransactionOutlined
 } from '@ant-design/icons';
 import { es } from 'date-fns/locale';
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { NumericFormat } from 'react-number-format';
-import './ListadoPedidos.css'; // Archivo CSS personalizado
+import './ListadoPedidos.css';
 
 const { Option } = Select;
 
@@ -33,7 +36,7 @@ export default function ListadoPedidos() {
   const navigate = useNavigate();
   const urlBase = 'http://localhost:9090/api/pedidos';
   const [todosPedidos, setTodosPedidos] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState('hoy'); // Filtro por defecto: hoy
+  const [filtroFecha, setFiltroFecha] = useState('hoy');
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [cargando, setCargando] = useState(true);
   const [estadisticas, setEstadisticas] = useState({
@@ -42,6 +45,8 @@ export default function ListadoPedidos() {
     cancelados: 0,
     total: 0
   });
+  const [modalVisible, setModalVisible] = useState(false);
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
 
   useEffect(() => {
     cargarPedidos();
@@ -64,14 +69,12 @@ export default function ListadoPedidos() {
     return todosPedidos.filter(pedido => {
       const fechaPedido = parseISO(pedido.fecha);
 
-      // Filtro por fecha
       const cumpleFecha =
         filtroFecha === 'todos' ||
         (filtroFecha === 'hoy' && isToday(fechaPedido)) ||
         (filtroFecha === 'semana' && isThisWeek(fechaPedido, { locale: es })) ||
         (filtroFecha === 'mes' && isThisMonth(fechaPedido));
 
-      // Filtro por estado
       const cumpleEstado =
         filtroEstado === 'todos' ||
         pedido.estado === filtroEstado;
@@ -89,16 +92,29 @@ export default function ListadoPedidos() {
     setEstadisticas({ entregados, pendientes, cancelados, total });
   };
 
-  const cambiarEstado = async (idPedido, nuevoEstado) => {
+  const cambiarEstado = async (idPedido, nuevoEstado, metodoPago = null) => {
     try {
-      await axios.put(`${urlBase}/${idPedido}/estado?estado=${nuevoEstado}`);
-      // Actualizar estado localmente para mejor rendimiento
+      const url = metodoPago
+        ? `${urlBase}/${idPedido}/estado?estado=${nuevoEstado}&metodoPago=${metodoPago}`
+        : `${urlBase}/${idPedido}/estado?estado=${nuevoEstado}`;
+
+      await axios.put(url);
+
       setTodosPedidos(prev => prev.map(pedido =>
-        pedido.id === idPedido ? { ...pedido, estado: nuevoEstado } : pedido
+        pedido.id === idPedido
+          ? { ...pedido, estado: nuevoEstado, metodoPago }
+          : pedido
       ));
     } catch (error) {
       console.error("Error actualizando estado:", error);
+    } finally {
+      setModalVisible(false);
     }
+  };
+
+  const abrirModalEntrega = (pedido) => {
+    setPedidoSeleccionado(pedido);
+    setModalVisible(true);
   };
 
   const getCardColor = (estado) => {
@@ -184,7 +200,6 @@ export default function ListadoPedidos() {
     )
   );
 
-  // Función para mostrar desechables
   const renderDesechables = (cantidadP1, cantidadC1) => {
     if (cantidadP1 > 0 || cantidadC1 > 0) {
       return (
@@ -195,13 +210,13 @@ export default function ListadoPedidos() {
           <ul className="list-unstyled small mb-0">
             {cantidadP1 > 0 && (
               <li className="text-dark d-flex justify-content-between">
-                <span>{cantidadP1}x P1 (Platos)</span>
+                <span>{cantidadP1}x P1</span>
                 <span className="text-muted">$500 c/u</span>
               </li>
             )}
             {cantidadC1 > 0 && (
               <li className="text-dark d-flex justify-content-between">
-                <span>{cantidadC1}x C1 (Cubiertos)</span>
+                <span>{cantidadC1}x C1</span>
                 <span className="text-muted">$500 c/u</span>
               </li>
             )}
@@ -314,11 +329,16 @@ export default function ListadoPedidos() {
     return (
       <Col xs={24} sm={12} lg={8} key={pedido.id} className="mb-4">
         <Card
-          className={`h-100 ${bg}`}
+          className={`h-100 ${bg} d-flex flex-column`}
           bordered={false}
           hoverable
           onClick={() => navigate(`/editarPedido/${pedido.id}`)}
-          bodyStyle={{ padding: '16px' }}
+          bodyStyle={{
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%'
+          }}
         >
           <div className="d-flex justify-content-between align-items-start mb-2">
             <div className="d-flex align-items-center">
@@ -326,6 +346,12 @@ export default function ListadoPedidos() {
               <Tag color={color} className="ms-2">
                 {pedido.estado}
               </Tag>
+
+              {pedido.domicilio && (
+                <Tag color="blue" className="ms-2">
+                  DOMICILIO
+                </Tag>
+              )}
             </div>
 
             <h4 className="text-success fw-bold mb-0">
@@ -348,9 +374,21 @@ export default function ListadoPedidos() {
           <div className="flex-grow-1">
             {pedido.productos && pedido.productos.length > 0 && renderProductos(pedido.productos)}
             {pedido.combos && pedido.combos.length > 0 && renderCombos(pedido.combos)}
-
-            {/* Mostrar desechables */}
             {renderDesechables(pedido.cantidadP1, pedido.cantidadC1)}
+
+            {pedido.domicilio && (
+              <div className="mt-2 d-flex justify-content-between">
+                <span className="text-primary">Costo domicilio:</span>
+                <span className="fw-bold">
+                  <NumericFormat
+                    value={pedido.costoDomicilio}
+                    displayType="text"
+                    thousandSeparator=","
+                    prefix="$"
+                  />
+                </span>
+              </div>
+            )}
 
             {pedido.detalles && (
               <div className="mt-3">
@@ -365,10 +403,10 @@ export default function ListadoPedidos() {
             )}
           </div>
 
-          {/* Botones de acción */}
-          <div className="d-flex gap-2 justify-content-end mt-3">
-            {pedido.estado === 'PENDIENTE' && (
-              <>
+          {/* Botones de acción o método de pago */}
+          <div className="mt-auto pt-3">
+            {pedido.estado === 'PENDIENTE' ? (
+              <div className="d-flex gap-2 justify-content-end">
                 <Button
                   danger
                   size="small"
@@ -384,13 +422,23 @@ export default function ListadoPedidos() {
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    cambiarEstado(pedido.id, 'ENTREGADO');
+                    abrirModalEntrega(pedido);
                   }}
                 >
                   Entregar
                 </Button>
-              </>
-            )}
+              </div>
+            ) : pedido.estado === 'ENTREGADO' && pedido.metodoPago ? (
+              <div className="d-flex justify-content-center">
+                <Tag
+                  color={pedido.metodoPago === 'EFECTIVO' ? 'green' : 'blue'}
+                  className="fw-bold"
+                  icon={pedido.metodoPago === 'EFECTIVO' ? <DollarOutlined /> : <TransactionOutlined />}
+                >
+                  PAGO: {pedido.metodoPago}
+                </Tag>
+              </div>
+            ) : null}
           </div>
         </Card>
       </Col>
@@ -432,6 +480,43 @@ export default function ListadoPedidos() {
           {pedidosFiltrados.map(renderPedido)}
         </Row>
       )}
+
+      {/* Modal para selección de método de pago */}
+      <Modal
+        title="Método de pago"
+        open={modalVisible}
+        onCancel={() => setModalVisible(false)}
+        footer={null}
+        centered
+        width={500}
+      >
+        <div className="text-center py-3">
+          <p>Seleccione el método de pago utilizado:</p>
+          <div className="d-flex justify-content-center gap-3 mt-4">
+            <Button
+              type="primary"
+              size="large"
+              icon={<DollarOutlined />}
+              className="d-flex flex-column align-items-center justify-content-center"
+              style={{ height: '80px', width: '120px' }}
+              onClick={() => cambiarEstado(pedidoSeleccionado.id, 'ENTREGADO', 'EFECTIVO')}
+            >
+              <span className="fs-5">EFECTIVO</span>
+            </Button>
+
+            <Button
+              type="primary"
+              size="large"
+              icon={<TransactionOutlined />}
+              className="d-flex flex-column align-items-center justify-content-center"
+              style={{ height: '80px', width: '120px' }}
+              onClick={() => cambiarEstado(pedidoSeleccionado.id, 'ENTREGADO', 'TRANSFERENCIA')}
+            >
+              <span className="fs-5">TRANSFERENCIA</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

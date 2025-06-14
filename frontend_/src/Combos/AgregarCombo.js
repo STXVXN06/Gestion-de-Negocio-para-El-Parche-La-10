@@ -1,10 +1,9 @@
-// src/components/AgregarCombo.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Form, Input, InputNumber, Button, Select, Table, Tag, Card, Divider, Typography, notification, Spin } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './AgregarCombo.css'; // Archivo CSS para estilos personalizados
+import './AgregarCombo.css';
 import { useNavigate } from 'react-router-dom';
 
 const { Title } = Typography;
@@ -16,12 +15,30 @@ export default function AgregarCombo() {
     const [productosSeleccionados, setProductosSeleccionados] = useState([]);
     const [productoActual, setProductoActual] = useState(null);
     const [cantidad, setCantidad] = useState(1);
-    const [precioTotal, setPrecioTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [guardando, setGuardando] = useState(false);
     const navigate = useNavigate();
 
-    // Obtener productos disponibles
+    // Observar cambios en el campo de descuento
+    const descuento = Form.useWatch('descuento', form) || 0;
+
+    // Calcular valores en tiempo real usando useMemo
+    const { subtotal, descuentoValor, total } = useMemo(() => {
+        const subtotalCalculado = productosSeleccionados.reduce(
+            (sum, item) => sum + item.precio * item.cantidad,
+            0
+        );
+
+        const descuentoValorCalculado = subtotalCalculado * descuento;
+        const totalCalculado = subtotalCalculado - descuentoValorCalculado;
+
+        return {
+            subtotal: subtotalCalculado,
+            descuentoValor: descuentoValorCalculado,
+            total: totalCalculado
+        };
+    }, [productosSeleccionados, descuento]);
+
     useEffect(() => {
         const fetchProductos = async () => {
             try {
@@ -42,20 +59,6 @@ export default function AgregarCombo() {
         fetchProductos();
     }, []);
 
-    // Calcular precio total cuando cambian los productos seleccionados
-    useEffect(() => {
-        const total = productosSeleccionados.reduce((sum, item) => {
-            return sum + (item.precio * item.cantidad);
-        }, 0);
-
-        // Aplicar descuento
-        const descuento = form.getFieldValue('descuento') || 0;
-        const totalConDescuento = total - (total * descuento);
-
-        setPrecioTotal(totalConDescuento);
-    }, [productosSeleccionados, form]);
-
-    // Agregar producto al combo
     const agregarProducto = () => {
         if (!productoActual || cantidad < 1) {
             notification.warning({
@@ -66,18 +69,16 @@ export default function AgregarCombo() {
             return;
         }
 
-        // Verificar si el producto ya está agregado
         const existe = productosSeleccionados.some(p => p.id === productoActual.id);
         if (existe) {
             notification.warning({
                 message: 'Producto duplicado',
-                description: 'Este producto ya está en el combo. Si desea cambiar la cantidad, elimínelo y vuelva a agregarlo.',
+                description: 'Este producto ya está en el combo. Elimínelo para cambiar la cantidad.',
                 placement: 'bottomRight'
             });
             return;
         }
 
-        // Agregar producto a la lista
         setProductosSeleccionados([
             ...productosSeleccionados,
             {
@@ -88,19 +89,16 @@ export default function AgregarCombo() {
             }
         ]);
 
-        // Resetear selección
         setProductoActual(null);
         setCantidad(1);
     };
 
-    // Eliminar producto del combo
     const eliminarProducto = (id) => {
         setProductosSeleccionados(
             productosSeleccionados.filter(producto => producto.id !== id)
         );
     };
 
-    // Enviar datos al backend
     const guardarCombo = async (values) => {
         if (productosSeleccionados.length === 0) {
             notification.error({
@@ -125,7 +123,7 @@ export default function AgregarCombo() {
         };
 
         try {
-            const response = await axios.post('http://localhost:9090/api/combos', comboData);
+            await axios.post('http://localhost:9090/api/combos', comboData);
             notification.success({
                 message: 'Combo creado',
                 description: `El combo "${values.nombre}" ha sido creado exitosamente`,
@@ -133,13 +131,10 @@ export default function AgregarCombo() {
                 duration: 1.5
             });
 
-            // Resetear formulario
             form.resetFields();
             setProductosSeleccionados([]);
-            setPrecioTotal(0);
-            setTimeout(() => {
-                navigate('/combos');
-            }, 1500); // Espera 1.5 segundos para que el usuario vea la notificación
+
+            setTimeout(() => navigate('/combos'), 1500);
         } catch (error) {
             console.error('Error al guardar el combo:', error);
             notification.error({
@@ -152,13 +147,8 @@ export default function AgregarCombo() {
         }
     };
 
-    // Columnas para la tabla de productos
     const columnas = [
-        {
-            title: 'Producto',
-            dataIndex: 'nombre',
-            key: 'nombre',
-        },
+        { title: 'Producto', dataIndex: 'nombre', key: 'nombre' },
         {
             title: 'Precio',
             dataIndex: 'precio',
@@ -219,7 +209,6 @@ export default function AgregarCombo() {
                 </Title>
 
                 <div className="row">
-                    {/* Formulario principal */}
                     <div className="col-lg-7">
                         <Form
                             form={form}
@@ -261,12 +250,22 @@ export default function AgregarCombo() {
                                     max={1}
                                     step={0.05}
                                     style={{ width: '100%' }}
-                                    formatter={value => `${value * 100}%`}
-                                    parser={value => value.replace('%', '') / 100}
+                                    formatter={value => `${(value * 100).toFixed(0)}%`}
+                                    parser={value => parseFloat(value.replace('%', '')) / 100}
                                 />
                             </Form.Item>
 
                             <Divider orientation="left">Productos del Combo</Divider>
+
+                            {/* Mostrar producto seleccionado */}
+                            {productoActual && (
+                                <div className="alert alert-info mb-3">
+                                    <strong>Producto seleccionado:</strong> {productoActual.nombre}
+                                    <span className="ms-2 badge bg-primary">
+                                        ${productoActual.precio.toLocaleString()}
+                                    </span>
+                                </div>
+                            )}
 
                             <div className="row g-3 align-items-end">
                                 <div className="col-md-6">
@@ -276,10 +275,10 @@ export default function AgregarCombo() {
                                             showSearch
                                             placeholder="Buscar producto..."
                                             optionFilterProp="children"
-                                            value={productoActual}
+                                            value={productoActual?.id}
                                             onChange={value => setProductoActual(productos.find(p => p.id === value))}
                                             filterOption={(input, option) =>
-                                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                                option.children.toLowerCase().includes(input.toLowerCase())
                                             }
                                             className="w-100"
                                         >
@@ -345,7 +344,6 @@ export default function AgregarCombo() {
                         </Form>
                     </div>
 
-                    {/* Vista previa del combo */}
                     <div className="col-lg-5">
                         <Card
                             title="Vista Previa del Combo"
@@ -382,15 +380,15 @@ export default function AgregarCombo() {
 
                             <div className="d-flex justify-content-between mb-2">
                                 <span>Subtotal:</span>
-                                <span>${(precioTotal / (1 - (form.getFieldValue('descuento') || 0))).toFixed(2)}</span>
+                                <span>${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
 
                             <div className="d-flex justify-content-between mb-2">
                                 <span>
-                                    Descuento ({((form.getFieldValue('descuento') || 0) * 100).toFixed(0)}%):
+                                    Descuento ({(descuento * 100).toFixed(0)}%):
                                 </span>
                                 <span className="text-danger">
-                                    -${((precioTotal / (1 - (form.getFieldValue('descuento') || 0)) * (form.getFieldValue('descuento') || 0)).toFixed(2))}
+                                    -${descuentoValor.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                             </div>
 
@@ -399,7 +397,7 @@ export default function AgregarCombo() {
                             <div className="d-flex justify-content-between fw-bold fs-5">
                                 <span>Total:</span>
                                 <span className="text-success">
-                                    ${precioTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                             </div>
 
