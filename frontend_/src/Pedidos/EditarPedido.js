@@ -2,9 +2,9 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber, Switch } from 'antd';
-import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined  } from '@ant-design/icons';
-import './AgregarPedido.css';
+import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber, Switch, Descriptions } from 'antd';
+import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
+import './AgregarPedido.css'; // Asegúrate de usar el mismo archivo CSS
 
 const { TabPane } = Tabs;
 
@@ -49,7 +49,6 @@ export default function EditarPedido() {
         };
 
         cargarStockDesechables();
-
     }, []);
 
     const cargarDatosIniciales = async () => {
@@ -305,8 +304,8 @@ export default function EditarPedido() {
         return combosDisponibles.find(c => c.id === id);
     };
 
-    // Calcular total del pedido
-    const calcularTotal = () => {
+    // Función para calcular los subtotales
+    const calcularSubtotales = () => {
         const totalProductos = pedido.productos.reduce((total, item) => {
             const producto = obtenerInfoProducto(item.productoId);
             return total + (producto?.precio || 0) * item.cantidad;
@@ -317,11 +316,36 @@ export default function EditarPedido() {
             return total + (combo?.precio || 0) * item.cantidad;
         }, 0);
 
-        // Agregar costo de desechables: P1 y C1 cuestan $500 cada uno
-        const totalDesechables = (pedido.cantidadP1 + pedido.cantidadC1) * 500;
+        // Calcular subtotal de desechables: P1 y C1 cuestan $500 cada uno
+        const subtotalP1 = pedido.cantidadP1 * 500;
+        const subtotalC1 = pedido.cantidadC1 * 500;
+        const totalDesechables = subtotalP1 + subtotalC1;
+
+        // Agregar costo de domicilio si está activado
         const totalDomicilio = pedido.domicilio ? pedido.costoDomicilio : 0;
-        return totalProductos + totalCombos + totalDesechables + totalDomicilio;
+
+        const totalGeneral = totalProductos + totalCombos + totalDesechables + totalDomicilio;
+
+        return {
+            totalProductos,
+            totalCombos,
+            subtotalP1,
+            subtotalC1,
+            totalDesechables,
+            totalDomicilio,
+            totalGeneral
+        };
     };
+
+    const {
+        totalProductos,
+        totalCombos,
+        subtotalP1,
+        subtotalC1,
+        totalDesechables,
+        totalDomicilio,
+        totalGeneral
+    } = calcularSubtotales();
 
     if (loading) return <div className="container mt-4">Cargando...</div>;
 
@@ -517,7 +541,7 @@ export default function EditarPedido() {
                             }} />
                             <h3 className="text-success m-0">
                                 <NumericFormat
-                                    value={calcularTotal()}
+                                    value={totalGeneral}
                                     displayType="text"
                                     thousandSeparator=","
                                     prefix="$"
@@ -525,6 +549,90 @@ export default function EditarPedido() {
                                 />
                             </h3>
                         </div>
+
+                        {/* Desglose de costos */}
+                        <Descriptions bordered size="small" column={1} className="mb-3">
+                            <Descriptions.Item label="Productos">
+                                <NumericFormat
+                                    value={totalProductos}
+                                    displayType="text"
+                                    thousandSeparator=","
+                                    prefix="$"
+                                    decimalScale={0}
+                                />
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Combos">
+                                <NumericFormat
+                                    value={totalCombos}
+                                    displayType="text"
+                                    thousandSeparator=","
+                                    prefix="$"
+                                    decimalScale={0}
+                                />
+                            </Descriptions.Item>
+
+                            {/* Subtotal para desechables */}
+                            <Descriptions.Item label="Desechables">
+                                <div className="d-flex justify-content-between">
+                                    <span>P1 ({pedido.cantidadP1} x $500):</span>
+                                    <span>
+                                        <NumericFormat
+                                            value={subtotalP1}
+                                            displayType="text"
+                                            thousandSeparator=","
+                                            prefix="$"
+                                            decimalScale={0}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="d-flex justify-content-between">
+                                    <span>C1 ({pedido.cantidadC1} x $500):</span>
+                                    <span>
+                                        <NumericFormat
+                                            value={subtotalC1}
+                                            displayType="text"
+                                            thousandSeparator=","
+                                            prefix="$"
+                                            decimalScale={0}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="d-flex justify-content-between fw-bold">
+                                    <span>Subtotal:</span>
+                                    <span>
+                                        <NumericFormat
+                                            value={totalDesechables}
+                                            displayType="text"
+                                            thousandSeparator=","
+                                            prefix="$"
+                                            decimalScale={0}
+                                        />
+                                    </span>
+                                </div>
+                            </Descriptions.Item>
+
+                            {pedido.domicilio && (
+                                <Descriptions.Item label="Domicilio">
+                                    <NumericFormat
+                                        value={totalDomicilio}
+                                        displayType="text"
+                                        thousandSeparator=","
+                                        prefix="$"
+                                        decimalScale={0}
+                                    />
+                                </Descriptions.Item>
+                            )}
+
+                            <Descriptions.Item label="Total" className="fw-bold">
+                                <NumericFormat
+                                    value={totalGeneral}
+                                    displayType="text"
+                                    thousandSeparator=","
+                                    prefix="$"
+                                    decimalScale={0}
+                                />
+                            </Descriptions.Item>
+                        </Descriptions>
 
                         {pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0 ? (
                             <div className="empty-cart">
@@ -540,12 +648,32 @@ export default function EditarPedido() {
                                         <ul className="lista-resumen">
                                             {pedido.productos.map(item => {
                                                 const producto = obtenerInfoProducto(item.productoId);
+                                                const subtotal = producto ? producto.precio * item.cantidad : 0;
+
                                                 return (
                                                     <li key={item.productoId} className="item-resumen">
                                                         <div className="item-info">
-                                                            <span className="item-nombre">
-                                                                {producto?.nombre || 'Producto eliminado'}
-                                                            </span>
+                                                            <div className="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <span className="item-nombre">{item.cantidad}x {producto?.nombre || 'Producto eliminado'}</span>
+                                                                    <div className="text-muted small">
+                                                                        <NumericFormat
+                                                                            value={producto?.precio || 0}
+                                                                            displayType="text"
+                                                                            thousandSeparator=","
+                                                                            prefix="$ c/u"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <span className="item-subtotal">
+                                                                    <NumericFormat
+                                                                        value={subtotal}
+                                                                        displayType="text"
+                                                                        thousandSeparator=","
+                                                                        prefix="$"
+                                                                    />
+                                                                </span>
+                                                            </div>
                                                             <div className="item-controles">
                                                                 <Button
                                                                     type="text"
@@ -580,12 +708,32 @@ export default function EditarPedido() {
                                         <ul className="lista-resumen">
                                             {pedido.combos.map(item => {
                                                 const combo = obtenerInfoCombo(item.comboId);
+                                                const subtotal = combo ? combo.precio * item.cantidad : 0;
+
                                                 return (
                                                     <li key={item.comboId} className="item-resumen">
                                                         <div className="item-info">
-                                                            <span className="item-nombre">
-                                                                {combo?.nombre || 'Combo eliminado'}
-                                                            </span>
+                                                            <div className="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <span className="item-nombre">{item.cantidad}x {combo?.nombre || 'Combo eliminado'}</span>
+                                                                    <div className="text-muted small">
+                                                                        <NumericFormat
+                                                                            value={combo?.precio || 0}
+                                                                            displayType="text"
+                                                                            thousandSeparator=","
+                                                                            prefix="$ c/u"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <span className="item-subtotal">
+                                                                    <NumericFormat
+                                                                        value={subtotal}
+                                                                        displayType="text"
+                                                                        thousandSeparator=","
+                                                                        prefix="$"
+                                                                    />
+                                                                </span>
+                                                            </div>
                                                             <div className="item-controles">
                                                                 <Button
                                                                     type="text"
@@ -679,10 +827,6 @@ export default function EditarPedido() {
                                         </div>
                                     )}
                                 </div>
-
-
-
-
 
                                 {/* Detalles adicionales */}
                                 <div className="detalles-adicionales mt-3">

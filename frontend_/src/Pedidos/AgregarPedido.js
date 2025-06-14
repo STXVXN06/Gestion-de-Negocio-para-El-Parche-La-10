@@ -2,7 +2,7 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Row, Col, Collapse, InputNumber, Alert, Switch, Form } from 'antd';
+import { Tabs, Input, Button, Card, Badge, Row, Col, InputNumber, Switch, Descriptions } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
 import './AgregarPedido.css';
 
@@ -160,8 +160,8 @@ export default function AgregarPedido() {
     return combosDisponibles.find(c => c.id === id);
   };
 
-  // Función para calcular el total
-  const calcularTotal = () => {
+  // Función para calcular los subtotales
+  const calcularSubtotales = () => {
     const totalProductos = productosSeleccionados.reduce((total, item) => {
       const producto = obtenerInfoProducto(item.productoId);
       return total + (producto?.precio || 0) * item.cantidad;
@@ -172,14 +172,36 @@ export default function AgregarPedido() {
       return total + (combo?.precio || 0) * item.cantidad;
     }, 0);
 
-    // Agregar costo de desechables: P1 y C1 cuestan $500 cada uno
-    const totalDesechables = (cantidadP1 + cantidadC1) * 500;
+    // Calcular subtotal de desechables: P1 y C1 cuestan $500 cada uno
+    const subtotalP1 = cantidadP1 * 500;
+    const subtotalC1 = cantidadC1 * 500;
+    const totalDesechables = subtotalP1 + subtotalC1;
 
     // Agregar costo de domicilio si está activado
     const totalDomicilio = domicilio ? costoDomicilio : 0;
 
-    return totalProductos + totalCombos + totalDesechables + totalDomicilio;
+    const totalGeneral = totalProductos + totalCombos + totalDesechables + totalDomicilio;
+
+    return {
+      totalProductos,
+      totalCombos,
+      subtotalP1,
+      subtotalC1,
+      totalDesechables,
+      totalDomicilio,
+      totalGeneral
+    };
   };
+
+  const {
+    totalProductos,
+    totalCombos,
+    subtotalP1,
+    subtotalC1,
+    totalDesechables,
+    totalDomicilio,
+    totalGeneral
+  } = calcularSubtotales();
 
   return (
     <div className='container'>
@@ -343,18 +365,90 @@ export default function AgregarPedido() {
         <Col xs={24} md={8}>
           <Card className="resumen-pedido" style={{ position: 'sticky', top: '20px' }}>
             <h3>Resumen del Pedido</h3>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h3>Total:</h3>
-              <h3 className="text-success m-0">
+
+            {/* Desglose de costos */}
+            <Descriptions bordered size="small" column={1} className="mb-3">
+              <Descriptions.Item label="Productos">
                 <NumericFormat
-                  value={calcularTotal()}
+                  value={totalProductos}
                   displayType="text"
                   thousandSeparator=","
                   prefix="$"
                   decimalScale={0}
                 />
-              </h3>
-            </div>
+              </Descriptions.Item>
+              <Descriptions.Item label="Combos">
+                <NumericFormat
+                  value={totalCombos}
+                  displayType="text"
+                  thousandSeparator=","
+                  prefix="$"
+                  decimalScale={0}
+                />
+              </Descriptions.Item>
+
+              {/* Subtotal para desechables */}
+              <Descriptions.Item label="Desechables">
+                <div className="d-flex justify-content-between">
+                  <span>P1 ({cantidadP1} x $500):</span>
+                  <span>
+                    <NumericFormat
+                      value={subtotalP1}
+                      displayType="text"
+                      thousandSeparator=","
+                      prefix="$"
+                      decimalScale={0}
+                    />
+                  </span>
+                </div>
+                <div className="d-flex justify-content-between">
+                  <span>C1 ({cantidadC1} x $500):</span>
+                  <span>
+                    <NumericFormat
+                      value={subtotalC1}
+                      displayType="text"
+                      thousandSeparator=","
+                      prefix="$"
+                      decimalScale={0}
+                    />
+                  </span>
+                </div>
+                <div className="d-flex justify-content-between fw-bold">
+                  <span>Subtotal:</span>
+                  <span>
+                    <NumericFormat
+                      value={totalDesechables}
+                      displayType="text"
+                      thousandSeparator=","
+                      prefix="$"
+                      decimalScale={0}
+                    />
+                  </span>
+                </div>
+              </Descriptions.Item>
+
+              {domicilio && (
+                <Descriptions.Item label="Domicilio">
+                  <NumericFormat
+                    value={totalDomicilio}
+                    displayType="text"
+                    thousandSeparator=","
+                    prefix="$"
+                    decimalScale={0}
+                  />
+                </Descriptions.Item>
+              )}
+
+              <Descriptions.Item label="Total" className="fw-bold">
+                <NumericFormat
+                  value={totalGeneral}
+                  displayType="text"
+                  thousandSeparator=","
+                  prefix="$"
+                  decimalScale={0}
+                />
+              </Descriptions.Item>
+            </Descriptions>
 
             {productosSeleccionados.length === 0 && combosSeleccionados.length === 0 ? (
               <div className="empty-cart">
@@ -370,10 +464,32 @@ export default function AgregarPedido() {
                     <ul className="lista-resumen">
                       {productosSeleccionados.map(item => {
                         const producto = obtenerInfoProducto(item.productoId);
+                        const subtotal = producto ? producto.precio * item.cantidad : 0;
+
                         return (
                           <li key={item.productoId} className="item-resumen">
                             <div className="item-info">
-                              <span className="item-nombre">{producto?.nombre || 'Producto eliminado'}</span>
+                              <div className="d-flex justify-content-between align-items-start">
+                                <div>
+                                  <span className="item-nombre">{item.cantidad}x {producto?.nombre || 'Producto eliminado'}</span>
+                                  <div className="text-muted small">
+                                    <NumericFormat
+                                      value={producto?.precio || 0}
+                                      displayType="text"
+                                      thousandSeparator=","
+                                      prefix="$ c/u"
+                                    />
+                                  </div>
+                                </div>
+                                <span className="item-subtotal">
+                                  <NumericFormat
+                                    value={subtotal}
+                                    displayType="text"
+                                    thousandSeparator=","
+                                    prefix="$"
+                                  />
+                                </span>
+                              </div>
                               <div className="item-controles">
                                 <Button
                                   type="text"
@@ -408,10 +524,32 @@ export default function AgregarPedido() {
                     <ul className="lista-resumen">
                       {combosSeleccionados.map(item => {
                         const combo = obtenerInfoCombo(item.comboId);
+                        const subtotal = combo ? combo.precio * item.cantidad : 0;
+
                         return (
                           <li key={item.comboId} className="item-resumen">
                             <div className="item-info">
-                              <span className="item-nombre">{combo?.nombre || 'Combo eliminado'}</span>
+                              <div className="d-flex justify-content-between align-items-start">
+                                <div>
+                                  <span className="item-nombre">{item.cantidad}x {combo?.nombre || 'Combo eliminado'}</span>
+                                  <div className="text-muted small">
+                                    <NumericFormat
+                                      value={combo?.precio || 0}
+                                      displayType="text"
+                                      thousandSeparator=","
+                                      prefix="$ c/u"
+                                    />
+                                  </div>
+                                </div>
+                                <span className="item-subtotal">
+                                  <NumericFormat
+                                    value={subtotal}
+                                    displayType="text"
+                                    thousandSeparator=","
+                                    prefix="$"
+                                  />
+                                </span>
+                              </div>
                               <div className="item-controles">
                                 <Button
                                   type="text"
@@ -484,11 +622,11 @@ export default function AgregarPedido() {
                   <HomeOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
                   <span>Domicilio</span>
                 </div>
-                <Switch 
-                  checked={domicilio} 
+                <Switch
+                  checked={domicilio}
                   onChange={setDomicilio}
-                  checkedChildren="Sí" 
-                  unCheckedChildren="No" 
+                  checkedChildren="Sí"
+                  unCheckedChildren="No"
                 />
               </div>
 
