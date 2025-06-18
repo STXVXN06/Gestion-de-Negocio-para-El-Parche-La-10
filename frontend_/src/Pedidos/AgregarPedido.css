@@ -9,13 +9,17 @@
 }
 
 /* MEJORA PRINCIPAL: Ajuste de cuadrícula para mostrar múltiples elementos */
-.productos-grid, .combos-grid {
+.productos-grid,
+.combos-grid,
+.adiciones-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
-.producto-card, .combo-card {
+.producto-card,
+.combo-card,
+.adicion-card {
   transition: all 0.3s;
   border-radius: 8px;
   overflow: hidden;
@@ -24,14 +28,18 @@
   flex-direction: column;
 }
 
-.producto-card .ant-card-body, .combo-card .ant-card-body {
+.producto-card .ant-card-body,
+.combo-card .ant-card-body,
+.adicion-card .ant-card-body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   padding: 12px;
 }
 
-.producto-card.selected, .combo-card.selected {
+.producto-card.selected,
+.combo-card.selected,
+.adicion-card.selected {
   border: 2px solid #1890ff;
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
 }
@@ -56,7 +64,8 @@
   line-height: 22px;
 }
 
-.controles-cantidad {
+.controles-cantidad,
+.controles-adicion {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,7 +73,8 @@
   gap: 5px;
 }
 
-.controles-cantidad button {
+.controles-cantidad button,
+.controles-adicion button {
   width: 32px;
   height: 32px;
   display: flex;
@@ -83,8 +93,6 @@
 }
 
 .resumen-content {
-  max-height: 300px;
-  overflow-y: auto;
   padding-right: 8px;
 }
 
@@ -148,6 +156,12 @@
   text-align: center;
 }
 
+.aplicado-a {
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 4px;
+}
+
 .detalles-adicionales textarea {
   resize: vertical;
 }
@@ -167,7 +181,9 @@
 }
 
 /* Optimización de espacio */
-.producto-card h5, .combo-card h5 {
+.producto-card h5,
+.combo-card h5,
+.adicion-card h5 {
   font-size: 15px;
   margin: 0;
   line-height: 1.3;
@@ -180,43 +196,60 @@
 
 /* Responsive mejorado */
 @media (min-width: 768px) {
-  .productos-grid, .combos-grid {
+
+  .productos-grid,
+  .combos-grid,
+  .adiciones-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (min-width: 992px) {
-  .productos-grid, .combos-grid {
+
+  .productos-grid,
+  .combos-grid,
+  .adiciones-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (min-width: 1200px) {
-  .productos-grid, .combos-grid {
+
+  .productos-grid,
+  .combos-grid,
+  .adiciones-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (min-width: 1400px) {
-  .productos-grid, .combos-grid {
+
+  .productos-grid,
+  .combos-grid,
+  .adiciones-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .productos-grid, .combos-grid {
+
+  .productos-grid,
+  .combos-grid,
+  .adiciones-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  
-  .producto-card, .combo-card {
+
+  .producto-card,
+  .combo-card,
+  .adicion-card {
     height: auto;
   }
-  
+
   .cantidad-input {
     width: 40px;
   }
-  
+
   .controles-cantidad button {
     width: 28px;
     height: 28px;
@@ -224,14 +257,17 @@
 }
 
 @media (max-width: 576px) {
-  .productos-grid, .combos-grid {
+
+  .productos-grid,
+  .combos-grid,
+  .adiciones-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .container.text-center {
     margin: 15px 0;
   }
-  
+
   h1 {
     font-size: 24px;
   }

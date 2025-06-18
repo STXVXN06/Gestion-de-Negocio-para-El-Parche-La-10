@@ -2,21 +2,25 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Row, Col, InputNumber, Switch, Descriptions } from 'antd';
+import { Tabs, Input, Button, Card, Badge, Row, Col, InputNumber, Switch, Descriptions, Collapse } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
 import './AgregarPedido.css';
 
 const { TabPane } = Tabs;
+const { Panel } = Collapse;
 
 export default function AgregarPedido() {
   const navigate = useNavigate();
   const [productosDisponibles, setProductosDisponibles] = useState([]);
   const [combosDisponibles, setCombosDisponibles] = useState([]);
+  const [ingredientesAdicionables, setIngredientesAdicionables] = useState([]);
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
   const [combosSeleccionados, setCombosSeleccionados] = useState([]);
+  const [adicionesSeleccionadas, setAdicionesSeleccionadas] = useState([]);
   const [detalles, setDetalles] = useState('');
   const [busquedaProducto, setBusquedaProducto] = useState('');
   const [busquedaCombo, setBusquedaCombo] = useState('');
+  const [busquedaAdicion, setBusquedaAdicion] = useState('');
   const [activeTab, setActiveTab] = useState('1');
   const [cantidadP1, setCantidadP1] = useState(0);
   const [cantidadC1, setCantidadC1] = useState(0);
@@ -24,7 +28,7 @@ export default function AgregarPedido() {
   const [domicilio, setDomicilio] = useState(false);
   const [costoDomicilio, setCostoDomicilio] = useState(2000);
 
-  // Obtener productos, combos y stock de desechables
+  // Obtener productos, combos, ingredientes adicionables y stock de desechables
   useEffect(() => {
     const cargarDatos = async () => {
       try {
@@ -36,6 +40,10 @@ export default function AgregarPedido() {
 
         setProductosDisponibles(productosResponse.data.filter(p => p.activo));
         setCombosDisponibles(combosResponse.data.filter(c => c.activo));
+
+        // Filtrar ingredientes adicionables
+        const adicionables = ingredientesResponse.data.filter(i => i.adicionable);
+        setIngredientesAdicionables(adicionables);
 
         // Obtener stock de desechables (P1 y C1)
         const p1 = ingredientesResponse.data.find(i => i.nombre === 'P1');
@@ -60,6 +68,11 @@ export default function AgregarPedido() {
   // Filtrar combos según búsqueda
   const combosFiltrados = combosDisponibles.filter(c =>
     c.nombre.toLowerCase().includes(busquedaCombo.toLowerCase())
+  );
+
+  // Filtrar adicionables según búsqueda
+  const adicionablesFiltrados = ingredientesAdicionables.filter(a =>
+    a.nombre.toLowerCase().includes(busquedaAdicion.toLowerCase())
   );
 
   // Manejar cambios en las cantidades de productos
@@ -92,6 +105,23 @@ export default function AgregarPedido() {
     });
   };
 
+  // Manejar cambios en las cantidades de adicionables
+  const actualizarCantidadAdicion = (ingredienteId, nuevaCantidad, aplicadoA = "") => {
+    const cantidad = Math.max(nuevaCantidad, 0);
+
+    setAdicionesSeleccionadas(prev => {
+      const existe = prev.find(a => a.ingredienteId === ingredienteId);
+      if (existe) {
+        return prev.map(a =>
+          a.ingredienteId === ingredienteId
+            ? { ...a, cantidad, aplicadoA: aplicadoA || a.aplicadoA }
+            : a
+        ).filter(a => a.cantidad > 0);
+      }
+      return [...prev, { ingredienteId, cantidad, aplicadoA }];
+    });
+  };
+
   // Quitar un producto del pedido
   const quitarProducto = (productoId) => {
     setProductosSeleccionados(prev => prev.filter(p => p.productoId !== productoId));
@@ -100,6 +130,11 @@ export default function AgregarPedido() {
   // Quitar un combo del pedido
   const quitarCombo = (comboId) => {
     setCombosSeleccionados(prev => prev.filter(c => c.comboId !== comboId));
+  };
+
+  // Quitar una adición del pedido
+  const quitarAdicion = (ingredienteId) => {
+    setAdicionesSeleccionadas(prev => prev.filter(a => a.ingredienteId !== ingredienteId));
   };
 
   // Enviar pedido al backend
@@ -130,6 +165,13 @@ export default function AgregarPedido() {
           comboId: c.comboId,
           cantidad: c.cantidad
         })),
+      adiciones: adicionesSeleccionadas
+        .filter(a => a.cantidad > 0)
+        .map(a => ({
+          ingredienteId: a.ingredienteId,
+          cantidad: a.cantidad,
+          aplicadoA: a.aplicadoA || ""
+        })),
       detalles,
       cantidadP1,
       cantidadC1,
@@ -141,10 +183,16 @@ export default function AgregarPedido() {
       await axios.post('http://localhost:9090/api/pedidos', pedidoDTO);
       navigate('/pedidos');
     } catch (error) {
-      if (error.response?.data?.message) {
-        // Mostrar error específico del backend
+      if (error.response?.data?.detalles) {
+        // Mostrar errores específicos de stock
+        const mensajeError = error.response.data.detalles.join('\n');
+        alert(`Error de stock:\n${mensajeError}`);
+      }
+      else if (error.response?.data?.message) {
+        // Mostrar otros errores del backend
         alert(`Error: ${error.response.data.message}`);
-      } else {
+      }
+      else {
         alert("Error desconocido al crear el pedido");
       }
     }
@@ -160,6 +208,11 @@ export default function AgregarPedido() {
     return combosDisponibles.find(c => c.id === id);
   };
 
+  // Obtener información de un ingrediente por ID
+  const obtenerInfoIngrediente = (id) => {
+    return ingredientesAdicionables.find(i => i.id === id);
+  };
+
   // Función para calcular los subtotales
   const calcularSubtotales = () => {
     const totalProductos = productosSeleccionados.reduce((total, item) => {
@@ -172,6 +225,11 @@ export default function AgregarPedido() {
       return total + (combo?.precio || 0) * item.cantidad;
     }, 0);
 
+    const totalAdiciones = adicionesSeleccionadas.reduce((total, item) => {
+      const ingrediente = obtenerInfoIngrediente(item.ingredienteId);
+      return total + (ingrediente?.precioAdicion || 0) * item.cantidad;
+    }, 0);
+
     // Calcular subtotal de desechables: P1 y C1 cuestan $500 cada uno
     const subtotalP1 = cantidadP1 * 500;
     const subtotalC1 = cantidadC1 * 500;
@@ -180,11 +238,12 @@ export default function AgregarPedido() {
     // Agregar costo de domicilio si está activado
     const totalDomicilio = domicilio ? costoDomicilio : 0;
 
-    const totalGeneral = totalProductos + totalCombos + totalDesechables + totalDomicilio;
+    const totalGeneral = totalProductos + totalCombos + totalAdiciones + totalDesechables + totalDomicilio;
 
     return {
       totalProductos,
       totalCombos,
+      totalAdiciones,
       subtotalP1,
       subtotalC1,
       totalDesechables,
@@ -196,6 +255,7 @@ export default function AgregarPedido() {
   const {
     totalProductos,
     totalCombos,
+    totalAdiciones,
     subtotalP1,
     subtotalC1,
     totalDesechables,
@@ -207,7 +267,7 @@ export default function AgregarPedido() {
     <div className='container'>
       <div className='container text-center' style={{ margin: '30px' }}>
         <h1>Crear Nuevo Pedido</h1>
-        <p className="text-muted">Seleccione productos y combos para agregar a su pedido</p>
+        <p className="text-muted">Seleccione productos, combos y adiciones para agregar a su pedido</p>
       </div>
 
       <Row gutter={[16, 16]}>
@@ -364,6 +424,100 @@ export default function AgregarPedido() {
                 })}
               </div>
             </TabPane>
+
+            <TabPane tab={<span><i className="fas fa-plus-circle"></i> Adiciones</span>} key="3">
+              <div className="mb-3">
+                <Input
+                  placeholder="Buscar adiciones..."
+                  prefix={<SearchOutlined />}
+                  value={busquedaAdicion}
+                  onChange={(e) => setBusquedaAdicion(e.target.value)}
+                  size="large"
+                />
+              </div>
+
+              <div className="adiciones-grid">
+                {adicionablesFiltrados.map((ingrediente) => {
+                  const seleccionado = adicionesSeleccionadas.find(a => a.ingredienteId === ingrediente.id);
+                  const cantidad = seleccionado?.cantidad || 0;
+                  const aplicadoA = seleccionado?.aplicadoA || "";
+
+                  return (
+                    <Card
+                      key={ingrediente.id}
+                      className={`adicion-card ${cantidad > 0 ? 'selected' : ''}`}
+                      hoverable
+                      bodyStyle={{ padding: '12px' }}
+                    >
+                      <div className="card-content">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <h5 className="mb-1">{ingrediente.nombre}</h5>
+                            <div>
+                              <NumericFormat
+                                value={ingrediente.precioAdicion}
+                                displayType="text"
+                                thousandSeparator=","
+                                prefix="$"
+                                className="precio"
+                              />
+                            </div>
+                          </div>
+                          <Badge
+                            count={cantidad}
+                            style={{ backgroundColor: '#faad14' }}
+                            className="cantidad-badge"
+                          />
+                        </div>
+
+                        <div className="controles-adicion mt-2">
+                          <div className="mb-2">
+                            <label className="small">Aplicado a:</label>
+                            <Input
+                              placeholder="Ej: Hamburguesa 1"
+                              value={aplicadoA}
+                              onChange={(e) => actualizarCantidadAdicion(
+                                ingrediente.id,
+                                cantidad,
+                                e.target.value
+                              )}
+                              size="small"
+                            />
+                          </div>
+
+                          <div className="controles-cantidad">
+                            <Button
+                              type={cantidad > 0 ? "primary" : "default"}
+                              shape="circle"
+                              icon={<MinusOutlined />}
+                              onClick={() => actualizarCantidadAdicion(ingrediente.id, cantidad - 1, aplicadoA)}
+                              disabled={cantidad === 0}
+                            />
+                            <Input
+                              type="number"
+                              className="cantidad-input"
+                              value={cantidad}
+                              onChange={(e) => actualizarCantidadAdicion(
+                                ingrediente.id,
+                                parseInt(e.target.value) || 0,
+                                aplicadoA
+                              )}
+                              min="0"
+                            />
+                            <Button
+                              type="primary"
+                              shape="circle"
+                              icon={<PlusOutlined />}
+                              onClick={() => actualizarCantidadAdicion(ingrediente.id, cantidad + 1, aplicadoA)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </TabPane>
           </Tabs>
         </Col>
 
@@ -385,6 +539,15 @@ export default function AgregarPedido() {
               <Descriptions.Item label="Combos">
                 <NumericFormat
                   value={totalCombos}
+                  displayType="text"
+                  thousandSeparator=","
+                  prefix="$"
+                  decimalScale={0}
+                />
+              </Descriptions.Item>
+              <Descriptions.Item label="Adiciones">
+                <NumericFormat
+                  value={totalAdiciones}
                   displayType="text"
                   thousandSeparator=","
                   prefix="$"
@@ -455,140 +618,209 @@ export default function AgregarPedido() {
               </Descriptions.Item>
             </Descriptions>
 
-            {productosSeleccionados.length === 0 && combosSeleccionados.length === 0 ? (
-              <div className="empty-cart">
-                <i className="fas fa-shopping-cart fa-3x"></i>
-                <p>No hay productos o combos seleccionados</p>
-              </div>
-            ) : (
-              <div className="resumen-content">
-                {/* Productos seleccionados */}
-                {productosSeleccionados.length > 0 && (
-                  <div className="seccion-resumen">
-                    <h5>Productos</h5>
-                    <ul className="lista-resumen">
-                      {productosSeleccionados.map(item => {
-                        const producto = obtenerInfoProducto(item.productoId);
-                        const subtotal = producto ? producto.precio * item.cantidad : 0;
+            <div className="resumen-content" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {productosSeleccionados.length === 0 &&
+                combosSeleccionados.length === 0 &&
+                adicionesSeleccionadas.length === 0 ? (
+                <div className="empty-cart">
+                  <i className="fas fa-shopping-cart fa-3x"></i>
+                  <p>No hay productos, combos o adiciones seleccionados</p>
+                </div>
+              ) : (
+                <Collapse defaultActiveKey={['1', '2', '3']} ghost>
+                  {/* Productos seleccionados */}
+                  {productosSeleccionados.length > 0 && (
+                    <Panel header="Productos" key="1">
+                      <ul className="lista-resumen">
+                        {productosSeleccionados.map(item => {
+                          const producto = obtenerInfoProducto(item.productoId);
+                          const subtotal = producto ? producto.precio * item.cantidad : 0;
 
-                        return (
-                          <li key={item.productoId} className="item-resumen">
-                            <div className="item-info">
-                              <div className="d-flex justify-content-between align-items-center">
-                                <div>
-                                  <span className="item-nombre">{item.cantidad}x {producto?.nombre || 'Producto eliminado'}</span>
-                                  <div className="text-muted small">
+                          return (
+                            <li key={item.productoId} className="item-resumen">
+                              <div className="item-info">
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <span className="item-nombre">{item.cantidad}x {producto?.nombre || 'Producto eliminado'}</span>
+                                    <div className="text-muted small">
+                                      <NumericFormat
+                                        value={producto?.precio || 0}
+                                        displayType="text"
+                                        thousandSeparator=","
+                                        prefix="$ c/u"
+                                      />
+                                    </div>
+                                  </div>
+                                  <span className="item-subtotal">
                                     <NumericFormat
-                                      value={producto?.precio || 0}
+                                      value={subtotal}
                                       displayType="text"
                                       thousandSeparator=","
-                                      prefix="$ c/u"
+                                      prefix="$"
                                     />
-                                  </div>
+                                  </span>
                                 </div>
-                                <span className="item-subtotal">
-                                  <NumericFormat
-                                    value={subtotal}
-                                    displayType="text"
-                                    thousandSeparator=","
-                                    prefix="$"
+                                <div className="item-controles">
+                                  <Button
+                                    type="text"
+                                    icon={<MinusOutlined />}
+                                    onClick={() => actualizarCantidadProducto(item.productoId, item.cantidad - 1)}
+                                    size="small"
                                   />
-                                </span>
+                                  <span className="item-cantidad">{item.cantidad}</span>
+                                  <Button
+                                    type="text"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => actualizarCantidadProducto(item.productoId, item.cantidad + 1)}
+                                    size="small"
+                                  />
+                                </div>
                               </div>
-                              <div className="item-controles">
-                                <Button
-                                  type="text"
-                                  icon={<MinusOutlined />}
-                                  onClick={() => actualizarCantidadProducto(item.productoId, item.cantidad - 1)}
-                                  size="small"
-                                />
-                                <span className="item-cantidad">{item.cantidad}</span>
-                                <Button
-                                  type="text"
-                                  icon={<PlusOutlined />}
-                                  onClick={() => actualizarCantidadProducto(item.productoId, item.cantidad + 1)}
-                                  size="small"
-                                />
-                              </div>
-                            </div>
-                            <Button
-                              type="text"
-                              icon={<DeleteOutlined />}
-                              onClick={() => quitarProducto(item.productoId)}
-                              danger
-                              size="small"
-                            />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
+                              <Button
+                                type="text"
+                                icon={<DeleteOutlined />}
+                                onClick={() => quitarProducto(item.productoId)}
+                                danger
+                                size="small"
+                              />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Panel>
+                  )}
 
-                {/* Combos seleccionados */}
-                {combosSeleccionados.length > 0 && (
-                  <div className="seccion-resumen">
-                    <h5>Combos</h5>
-                    <ul className="lista-resumen">
-                      {combosSeleccionados.map(item => {
-                        const combo = obtenerInfoCombo(item.comboId);
-                        const subtotal = combo ? combo.precio * item.cantidad : 0;
+                  {/* Combos seleccionados */}
+                  {combosSeleccionados.length > 0 && (
+                    <Panel header="Combos" key="2">
+                      <ul className="lista-resumen">
+                        {combosSeleccionados.map(item => {
+                          const combo = obtenerInfoCombo(item.comboId);
+                          const subtotal = combo ? combo.precio * item.cantidad : 0;
 
-                        return (
-                          <li key={item.comboId} className="item-resumen">
-                            <div className="item-info">
-                              <div className="d-flex justify-content-between align-items-center">
-                                <div>
-                                  <span className="item-nombre">{item.cantidad}x {combo?.nombre || 'Combo eliminado'}</span>
-                                  <div className="text-muted small">
+                          return (
+                            <li key={item.comboId} className="item-resumen">
+                              <div className="item-info">
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <span className="item-nombre">{item.cantidad}x {combo?.nombre || 'Combo eliminado'}</span>
+                                    <div className="text-muted small">
+                                      <NumericFormat
+                                        value={combo?.precio || 0}
+                                        displayType="text"
+                                        thousandSeparator=","
+                                        prefix="$ c/u"
+                                      />
+                                    </div>
+                                  </div>
+                                  <span className="item-subtotal">
                                     <NumericFormat
-                                      value={combo?.precio || 0}
+                                      value={subtotal}
                                       displayType="text"
                                       thousandSeparator=","
-                                      prefix="$ c/u"
+                                      prefix="$"
                                     />
-                                  </div>
+                                  </span>
                                 </div>
-                                <span className="item-subtotal">
-                                  <NumericFormat
-                                    value={subtotal}
-                                    displayType="text"
-                                    thousandSeparator=","
-                                    prefix="$"
+                                <div className="item-controles">
+                                  <Button
+                                    type="text"
+                                    icon={<MinusOutlined />}
+                                    onClick={() => actualizarCantidadCombo(item.comboId, item.cantidad - 1)}
+                                    size="small"
                                   />
-                                </span>
+                                  <span className="item-cantidad">{item.cantidad}</span>
+                                  <Button
+                                    type="text"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => actualizarCantidadCombo(item.comboId, item.cantidad + 1)}
+                                    size="small"
+                                  />
+                                </div>
                               </div>
-                              <div className="item-controles">
-                                <Button
-                                  type="text"
-                                  icon={<MinusOutlined />}
-                                  onClick={() => actualizarCantidadCombo(item.comboId, item.cantidad - 1)}
-                                  size="small"
-                                />
-                                <span className="item-cantidad">{item.cantidad}</span>
-                                <Button
-                                  type="text"
-                                  icon={<PlusOutlined />}
-                                  onClick={() => actualizarCantidadCombo(item.comboId, item.cantidad + 1)}
-                                  size="small"
-                                />
+                              <Button
+                                type="text"
+                                icon={<DeleteOutlined />}
+                                onClick={() => quitarCombo(item.comboId)}
+                                danger
+                                size="small"
+                              />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Panel>
+                  )}
+
+                  {/* Adiciones seleccionadas */}
+                  {adicionesSeleccionadas.length > 0 && (
+                    <Panel header="Adiciones" key="3">
+                      <ul className="lista-resumen">
+                        {adicionesSeleccionadas.map(item => {
+                          const ingrediente = obtenerInfoIngrediente(item.ingredienteId);
+                          const subtotal = ingrediente ? ingrediente.precioAdicion * item.cantidad : 0;
+
+                          return (
+                            <li key={item.ingredienteId} className="item-resumen">
+                              <div className="item-info">
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <span className="item-nombre">{item.cantidad}x {ingrediente?.nombre || 'Adición eliminada'}</span>
+                                    <div className="text-muted small">
+                                      <NumericFormat
+                                        value={ingrediente?.precioAdicion || 0}
+                                        displayType="text"
+                                        thousandSeparator=","
+                                        prefix="$ c/u"
+                                      />
+                                      {item.aplicadoA && (
+                                        <div className="aplicado-a">
+                                          <small>Aplicado a: {item.aplicadoA}</small>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="item-subtotal">
+                                    <NumericFormat
+                                      value={subtotal}
+                                      displayType="text"
+                                      thousandSeparator=","
+                                      prefix="$"
+                                    />
+                                  </span>
+                                </div>
+                                <div className="item-controles">
+                                  <Button
+                                    type="text"
+                                    icon={<MinusOutlined />}
+                                    onClick={() => actualizarCantidadAdicion(item.ingredienteId, item.cantidad - 1, item.aplicadoA)}
+                                    size="small"
+                                  />
+                                  <span className="item-cantidad">{item.cantidad}</span>
+                                  <Button
+                                    type="text"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => actualizarCantidadAdicion(item.ingredienteId, item.cantidad + 1, item.aplicadoA)}
+                                    size="small"
+                                  />
+                                </div>
                               </div>
-                            </div>
-                            <Button
-                              type="text"
-                              icon={<DeleteOutlined />}
-                              onClick={() => quitarCombo(item.comboId)}
-                              danger
-                              size="small"
-                            />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+                              <Button
+                                type="text"
+                                icon={<DeleteOutlined />}
+                                onClick={() => quitarAdicion(item.ingredienteId)}
+                                danger
+                                size="small"
+                              />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Panel>
+                  )}
+                </Collapse>
+              )}
+            </div>
 
             {/* Desechables */}
             <div className="seccion-resumen mt-3">
@@ -675,7 +907,13 @@ export default function AgregarPedido() {
                 type="primary"
                 size="large"
                 onClick={onSubmit}
-                disabled={productosSeleccionados.length === 0 && combosSeleccionados.length === 0 && cantidadP1 === 0 && cantidadC1 === 0}
+                disabled={
+                  productosSeleccionados.length === 0 &&
+                  combosSeleccionados.length === 0 &&
+                  adicionesSeleccionadas.length === 0 &&
+                  cantidadP1 === 0 &&
+                  cantidadC1 === 0
+                }
                 block
                 className="mb-2"
               >

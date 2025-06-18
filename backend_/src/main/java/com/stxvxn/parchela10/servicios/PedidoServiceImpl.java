@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.stxvxn.parchela10.DTO.PedidoComboDTO;
 import com.stxvxn.parchela10.DTO.PedidoRequestDTO;
+import com.stxvxn.parchela10.entidades.AdicionPedido;
 import com.stxvxn.parchela10.entidades.Caja;
 import com.stxvxn.parchela10.entidades.ComboProducto;
 import com.stxvxn.parchela10.entidades.Ingrediente;
@@ -95,7 +96,15 @@ public class PedidoServiceImpl implements IPedidoService {
             totalDesechables += 500 * pedido.getCantidadC1();
         }
         pedido.setTotal(pedido.getTotal() + totalDesechables);
+        
 
+        // Asignar el pedido a cada adicion
+        for (AdicionPedido adicion : pedido.getAdiciones()) {
+            adicion.setPedido(pedido); // ESTA LÍNEA FALTABA
+        }
+ 
+ 
+ 
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
 
         if (pedidoGuardado.getCantidadP1() > 0) {
@@ -145,6 +154,14 @@ public class PedidoServiceImpl implements IPedidoService {
                     ingredienteRepository.save(ing);
                 }
             }
+        }
+
+        // Restar ingredientes de las adiciones
+        for (AdicionPedido adicion : pedido.getAdiciones()) {
+            Ingrediente ing = adicion.getIngrediente();
+            double cantidadUsada = adicion.getCantidad();
+            ing.setCantidadActual(ing.getCantidadActual() - cantidadUsada);
+            ingredienteRepository.save(ing);
         }
         return Optional.of(pedidoGuardado);
     }
@@ -227,6 +244,14 @@ public class PedidoServiceImpl implements IPedidoService {
                         ingredienteRepository.save(ing);
                     }
                 }
+            }
+
+            // Devolver ingredientes de adiciones
+            for (AdicionPedido adicion : pedido.getAdiciones()) {
+                Ingrediente ing = adicion.getIngrediente();
+                double cantidadDevuelta = adicion.getCantidad();
+                ing.setCantidadActual(ing.getCantidadActual() + cantidadDevuelta);
+                ingredienteRepository.save(ing);
             }
         }
 

@@ -14,12 +14,13 @@ public class PedidoConProductosDTO {
     private Long total;
     private String detalles;
     private List<ProductoEnPedido> productos;
-    private List<ComboEnPedido> combos; // Nuevo campo
+    private List<ComboEnPedido> combos;
     private Integer cantidadP1;
     private Integer cantidadC1;
     private boolean domicilio;
     private Long costoDomicilio;
     private String metodoPago;
+    private List<AdicionResponseDTO> adiciones; 
 
     @Data
     public static class ProductoEnPedido {

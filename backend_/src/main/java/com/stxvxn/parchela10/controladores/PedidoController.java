@@ -24,11 +24,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.stxvxn.parchela10.DTO.AdicionRequestDTO;
+import com.stxvxn.parchela10.DTO.AdicionResponseDTO;
 import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
 import com.stxvxn.parchela10.DTO.PedidoComboDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ProductoEnPedido;
 import com.stxvxn.parchela10.DTO.PedidoRequestDTO;
+import com.stxvxn.parchela10.entidades.AdicionPedido;
 import com.stxvxn.parchela10.entidades.Combo;
 import com.stxvxn.parchela10.entidades.ComboProducto;
 import com.stxvxn.parchela10.entidades.Ingrediente;
@@ -168,7 +171,46 @@ public class PedidoController {
 
         total += pedido.getCostoDomicilio();
 
+        // 3. Procesar adiciones
+        List<AdicionPedido> adiciones = new ArrayList<>();
+        Map<Long, Double> adicionesRequeridas = new HashMap<>(); // Para validación de stock
+
+        for (AdicionRequestDTO adicionDTO : pedidoDTO.getAdiciones()) {
+            Ingrediente ingrediente = ingredienteService.findById(adicionDTO.getIngredienteId())
+                    .orElseThrow(() -> new RuntimeException("Ingrediente no encontrado"));
+
+            // Validar que sea adicionable
+            if (!ingrediente.isAdicionable()) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "El ingrediente " + ingrediente.getNombre() + " no es adicionable"));
+            }
+
+            // Acumular para validación de stock
+            adicionesRequeridas.merge(ingrediente.getId(), (double) adicionDTO.getCantidad(), Double::sum);
+
+            // Crear entidad
+            AdicionPedido adicion = new AdicionPedido();
+            adicion.setIngrediente(ingrediente);
+            adicion.setCantidad(adicionDTO.getCantidad());
+            adicion.setAplicadoA(adicionDTO.getAplicadoA());
+            adiciones.add(adicion);
+        }
+
+        // Validar stock de adiciones
+        List<String> erroresAdiciones = validarStock(adicionesRequeridas);
+        if (!erroresAdiciones.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "mensaje", "Stock insuficiente para adiciones",
+                    "detalles", erroresAdiciones));
+        }
+
+        long costoAdiciones = adiciones.stream()
+                .mapToLong(a -> a.getIngrediente().getPrecioAdicion() * a.getCantidad())
+                .sum();
+        total += costoAdiciones;
+
         pedido.setTotal(total);
+        pedido.setAdiciones(adiciones);
 
         Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos, pedidoCombos);
         if (pedidoCreado.isPresent()) {
@@ -251,6 +293,8 @@ public class PedidoController {
             List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedido.getId());
             dto.setCombos(mapearCombos(combos));
 
+            // Adiciones
+            dto.setAdiciones(mapearAdiciones(pedido.getAdiciones()));
             dtos.add(dto);
         }
         return ResponseEntity.ok(dtos);
@@ -291,25 +335,39 @@ public class PedidoController {
         }).toList();
     }
 
+    private List<AdicionResponseDTO> mapearAdiciones(List<AdicionPedido> adiciones) {
+        return adiciones.stream().map(a -> {
+            AdicionResponseDTO dto = new AdicionResponseDTO();
+            dto.setId(a.getId());
+            dto.setNombreIngrediente(a.getIngrediente().getNombre());
+            dto.setCantidad(a.getCantidad());
+            dto.setPrecioAdicion(a.getIngrediente().getPrecioAdicion());
+            dto.setSubtotal(a.getIngrediente().getPrecioAdicion() * a.getCantidad());
+            dto.setAplicadoA(a.getAplicadoA());
+            return dto;
+        }).toList();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PedidoConProductosDTO> obtenerPedidoPorId(@PathVariable Long id) {
         Optional<Pedido> pedidoOptional = pedidoService.buscarPedidoPorId(id);
         if (pedidoOptional.isPresent()) {
+            Pedido pedido = pedidoOptional.orElseThrow();
             PedidoConProductosDTO dto = new PedidoConProductosDTO();
-            dto.setId(pedidoOptional.get().getId());
-            dto.setFecha(pedidoOptional.get().getFecha());
-            dto.setEstado(pedidoOptional.get().getEstado());
-            dto.setTotal(pedidoOptional.get().getTotal());
-            dto.setDetalles(pedidoOptional.get().getDetalles());
-            dto.setCantidadP1(pedidoOptional.get().getCantidadP1());
-            dto.setCantidadC1(pedidoOptional.get().getCantidadC1());
-            dto.setDomicilio(pedidoOptional.get().isDomicilio());
-            dto.setCostoDomicilio(pedidoOptional.get().getCostoDomicilio());
-            dto.setMetodoPago(pedidoOptional.get().getMetodoPago());
+            dto.setId(pedido.getId());
+            dto.setFecha(pedido.getFecha());
+            dto.setEstado(pedido.getEstado());
+            dto.setTotal(pedido.getTotal());
+            dto.setDetalles(pedido.getDetalles());
+            dto.setCantidadP1(pedido.getCantidadP1());
+            dto.setCantidadC1(pedido.getCantidadC1());
+            dto.setDomicilio(pedido.isDomicilio());
+            dto.setCostoDomicilio(pedido.getCostoDomicilio());
+            dto.setMetodoPago(pedido.getMetodoPago());
 
             List<PedidoProducto> productos = pedidoProductoService
-                    .obtenerPedidoProductosPorPedidoId(pedidoOptional.orElseThrow().getId());
-            List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedidoOptional.orElseThrow().getId());
+                    .obtenerPedidoProductosPorPedidoId(pedido.getId());
+            List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedido.getId());
             dto.setCombos(mapearCombos(combos));
 
             List<ProductoEnPedido> productosDTO = productos.stream()
@@ -323,6 +381,8 @@ public class PedidoController {
                     }).toList();
 
             dto.setProductos(productosDTO);
+            dto.setAdiciones(mapearAdiciones(pedido.getAdiciones()));
+
             return ResponseEntity.ok().body(dto);
         } else {
             return ResponseEntity.notFound().build();

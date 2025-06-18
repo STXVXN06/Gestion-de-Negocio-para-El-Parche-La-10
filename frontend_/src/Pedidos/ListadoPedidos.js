@@ -248,6 +248,37 @@ export default function ListadoPedidos() {
     return null;
   };
 
+  const renderAdiciones = (adiciones) => (
+    adiciones && adiciones.length > 0 && (
+      <div className="adiciones-list">
+        <div className="section-title">Adiciones</div>
+        {adiciones.map((adicion, index) => (
+          <div key={index} className="adicion-item">
+            <div className="adicion-info">
+              <span className="adicion-quantity">{adicion.cantidad}x</span>
+              <span className="adicion-name">{adicion.nombreIngrediente}</span>
+              {adicion.aplicadoA && (
+                <span className="adicion-aplicado">({adicion.aplicadoA})</span>
+              )}
+            </div>
+            <div className="adicion-subtotal">
+              <NumericFormat
+                value={adicion.subtotal}
+                displayType="text"
+                thousandSeparator=","
+                prefix="$"
+              />
+              <span className="adicion-precio-unitario">
+                ($<NumericFormat value={adicion.precioAdicion} displayType="text" thousandSeparator="," /> c/u)
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  );
+
+
   const renderFiltros = () => (
     <Card className="filter-card">
       <div className="filter-container">
@@ -335,7 +366,7 @@ export default function ListadoPedidos() {
                 </Tag>
               )}
             </div>
-            
+
             <div className="pedido-info">
               <div className="pedido-icon">{icon}</div>
               <div>
@@ -375,8 +406,8 @@ export default function ListadoPedidos() {
                 <div className="detalles-expandidos">
                   {pedido.productos && pedido.productos.length > 0 && renderProductos(pedido.productos)}
                   {pedido.combos && pedido.combos.length > 0 && renderCombos(pedido.combos)}
+                  {pedido.adiciones && pedido.adiciones.length > 0 && renderAdiciones(pedido.adiciones)}
                   {renderDesechables(pedido.cantidadP1, pedido.cantidadC1)}
-
                   {pedido.domicilio && (
                     <div className="domicilio-info">
                       <div className="section-title">Domicilio</div>
@@ -391,7 +422,7 @@ export default function ListadoPedidos() {
                     </div>
                   )}
 
-                  {pedido.detalles && (
+                  {pedido.detalles && pedido.detalles !== "Sin detalles" && (
                     <div className="detalles-adicionales">
                       <div className="section-title">Detalles adicionales</div>
                       <p>{pedido.detalles}</p>

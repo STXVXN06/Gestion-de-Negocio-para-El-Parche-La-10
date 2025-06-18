@@ -1,6 +1,5 @@
 package com.stxvxn.parchela10.entidades;
 
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -8,35 +7,30 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
-@Entity
-@Table(name = "ingredientes")
+@Table(name = "adiciones_pedido")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Ingrediente {
+@Entity
+public class AdicionPedido {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
-    private String nombre;  
+    @ManyToOne
+    @JoinColumn(name = "pedido_id", nullable = false) // Asegúrate que sea nullable=false
+    private Pedido pedido;
 
     @ManyToOne
-    @JoinColumn(name = "unidad_medida_id")
-    private UnidadMedida unidadMedida;
+    private Ingrediente ingrediente;
 
-    @NotNull
-    private Double cantidadActual;
+    private Integer cantidad;
 
-    private boolean adicionable = false;
-    
-    private Long precioAdicion;
+    // Campo para notas sobre a qué producto se aplica
+    private String aplicadoA;
 }

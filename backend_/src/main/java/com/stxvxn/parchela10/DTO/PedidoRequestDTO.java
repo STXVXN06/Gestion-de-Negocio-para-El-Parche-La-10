@@ -13,6 +13,7 @@ public class PedidoRequestDTO {
     private String detalles;
     private Integer cantidadP1;
     private Integer cantidadC1;
+    private List<AdicionRequestDTO> adiciones;
 
 
     private boolean domicilio = false;
