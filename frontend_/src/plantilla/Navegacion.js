@@ -17,7 +17,7 @@ export default function Navegacion() {
   const [visible, setVisible] = useState(false);
 
   const items = [
-    { key: '/', label: 'Inicio', icon: <HomeOutlined /> },
+    { key: '/reportes', label: 'Reportes', icon: <HomeOutlined /> },
     { key: '/pedidos', label: 'Pedidos', icon: <ShoppingCartOutlined /> },
     { key: '/ingredientes', label: 'Ingredientes', icon: <AppstoreOutlined /> },
     { key: '/productos', label: 'Productos', icon: <InboxOutlined /> },

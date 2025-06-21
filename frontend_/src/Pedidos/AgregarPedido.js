@@ -834,7 +834,6 @@ export default function AgregarPedido() {
                 </div>
                 <InputNumber
                   min={0}
-                  max={stockDesechables.P1}
                   value={cantidadP1}
                   onChange={setCantidadP1}
                   style={{ width: '80px' }}
@@ -850,7 +849,6 @@ export default function AgregarPedido() {
                 </div>
                 <InputNumber
                   min={0}
-                  max={stockDesechables.C1}
                   value={cantidadC1}
                   onChange={setCantidadC1}
                   style={{ width: '80px' }}

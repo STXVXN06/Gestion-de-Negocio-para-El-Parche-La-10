@@ -23,4 +23,6 @@ public interface IIngredienteService {
 
     Optional<Ingrediente> findByNombre(String nombre);
 
+    List<Ingrediente> obtenerIngredientesBajoStock();
+
 }

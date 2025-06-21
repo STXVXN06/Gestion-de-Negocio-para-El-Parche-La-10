@@ -2,19 +2,29 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
-import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber, Switch, Descriptions } from 'antd';
+import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber, Switch, Descriptions, Collapse } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
-import './AgregarPedido.css'; // Asegúrate de usar el mismo archivo CSS
+import './AgregarPedido.css';
+import { notification } from 'antd';
 
 const { TabPane } = Tabs;
+const { Panel } = Collapse;
 
 export default function EditarPedido() {
+
+
+    notification.config({
+        placement: 'topRight',
+        top: 50,
+        duration: 5,
+    });
     const { id } = useParams();
     const navigate = useNavigate();
     const [pedido, setPedido] = useState({
         detalles: '',
         productos: [],
         combos: [],
+        adiciones: [],
         estado: 'PENDIENTE',
         cantidadP1: 0,
         cantidadC1: 0,
@@ -24,8 +34,10 @@ export default function EditarPedido() {
 
     const [productosDisponibles, setProductosDisponibles] = useState([]);
     const [combosDisponibles, setCombosDisponibles] = useState([]);
+    const [ingredientesAdicionables, setIngredientesAdicionables] = useState([]);
     const [busquedaProducto, setBusquedaProducto] = useState('');
     const [busquedaCombo, setBusquedaCombo] = useState('');
+    const [busquedaAdicion, setBusquedaAdicion] = useState('');
     const [activeTab, setActiveTab] = useState('1');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState({ tipo: '', mensajes: [] });
@@ -61,14 +73,25 @@ export default function EditarPedido() {
                 axios.get('http://localhost:9090/api/ingredientes')
             ]);
 
+            // Filtrar ingredientes adicionables
+            const adicionables = ingredientesRes.data.filter(i => i.adicionable);
+            setIngredientesAdicionables(adicionables);
+
             const productosEnPedido = pedidoRes.data.productos?.map(p => ({
-                productoId: p.id || p.producto?.id,
+                productoId: p.id,
                 cantidad: p.cantidad
             })) || [];
 
             const combosEnPedido = pedidoRes.data.combos?.map(c => ({
                 comboId: c.id,
                 cantidad: c.cantidad
+            })) || [];
+
+            const adicionesEnPedido = pedidoRes.data.adiciones?.map(a => ({
+                id: a.id,
+                ingredienteId: a.ingredienteId,
+                cantidad: a.cantidad,
+                aplicadoA: a.aplicadoA || ""
             })) || [];
 
             // Obtener stock de desechables
@@ -85,6 +108,7 @@ export default function EditarPedido() {
                 detalles: pedidoRes.data.detalles || '',
                 productos: productosEnPedido,
                 combos: combosEnPedido,
+                adiciones: adicionesEnPedido,
                 cantidadP1: pedidoRes.data.cantidadP1 || 0,
                 cantidadC1: pedidoRes.data.cantidadC1 || 0,
                 domicilio: pedidoRes.data.domicilio || false,
@@ -168,6 +192,42 @@ export default function EditarPedido() {
         });
     };
 
+    // Manejar cambios en las cantidades de adiciones
+    const actualizarCantidadAdicion = (ingredienteId, nuevaCantidad, aplicadoA = "") => {
+        const cantidad = Math.max(nuevaCantidad, 0);
+
+        setPedido(prev => {
+            const nuevasAdiciones = [...prev.adiciones];
+            const existe = nuevasAdiciones.find(a => a.ingredienteId === ingredienteId);
+
+            if (existe) {
+                if (cantidad === 0) {
+                    // Eliminar si cantidad es 0
+                    return {
+                        ...prev,
+                        adiciones: nuevasAdiciones.filter(a => a.ingredienteId !== ingredienteId)
+                    };
+                }
+                // Actualizar
+                return {
+                    ...prev,
+                    adiciones: nuevasAdiciones.map(a =>
+                        a.ingredienteId === ingredienteId
+                            ? { ...a, cantidad, aplicadoA: aplicadoA || a.aplicadoA }
+                            : a
+                    )
+                };
+            } else if (cantidad > 0) {
+                // Agregar
+                return {
+                    ...prev,
+                    adiciones: [...nuevasAdiciones, { ingredienteId, cantidad, aplicadoA }]
+                };
+            }
+            return prev;
+        });
+    };
+
     // Quitar un producto del pedido
     const quitarProducto = (productoId) => {
         setPedido(prev => ({
@@ -181,6 +241,14 @@ export default function EditarPedido() {
         setPedido(prev => ({
             ...prev,
             combos: prev.combos.filter(c => c.comboId !== comboId)
+        }));
+    };
+
+    // Quitar una adición del pedido
+    const quitarAdicion = (ingredienteId) => {
+        setPedido(prev => ({
+            ...prev,
+            adiciones: prev.adiciones.filter(a => a.ingredienteId !== ingredienteId)
         }));
     };
 
@@ -206,10 +274,14 @@ export default function EditarPedido() {
 
         try {
             // Validaciones básicas
-            if (pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0) {
+            if (pedido.productos.length === 0 &&
+                pedido.combos.length === 0 &&
+                pedido.adiciones.length === 0 &&
+                pedido.cantidadP1 === 0 &&
+                pedido.cantidadC1 === 0) {
                 setError({
                     tipo: 'VALIDACION',
-                    mensajes: ['Debe agregar al menos un producto, combo o desechable al pedido']
+                    mensajes: ['Debe agregar al menos un producto, combo, adición o desechable al pedido']
                 });
                 return;
             }
@@ -242,6 +314,11 @@ export default function EditarPedido() {
                     comboId: c.comboId,
                     cantidad: c.cantidad
                 })),
+                adiciones: pedido.adiciones.map(a => ({
+                    ingredienteId: a.ingredienteId,
+                    cantidad: a.cantidad,
+                    aplicadoA: a.aplicadoA
+                })),
                 cantidadP1: pedido.cantidadP1,
                 cantidadC1: pedido.cantidadC1,
                 domicilio: pedido.domicilio,
@@ -255,39 +332,26 @@ export default function EditarPedido() {
                 { headers: { 'Content-Type': 'application/json' } }
             );
 
-            if (data.tipo === "STOCK_INSUFICIENTE") {
-                throw new Error(JSON.stringify(data));
-            }
 
             navigate('/pedidos', { state: { success: 'Pedido actualizado correctamente' } });
         } catch (error) {
             if (error.response) {
                 const { data, status } = error.response;
 
+                // Manejar todos los errores de stock juntos
                 if (status === 409 && data.tipo === "STOCK_INSUFICIENTE") {
-                    setError({
-                        tipo: 'STOCK',
-                        mensajes: data.detalles
-                    });
+                    const errorMessage = data.detalles.join('\n');
+                    alert(`Error de stock:\n${errorMessage}`);
                 } else {
-                    setError({
-                        tipo: 'GENERAL',
-                        mensajes: [data.message || 'Error al guardar cambios']
-                    });
+                    // Otros errores
+                    mostrarNotificacionError(
+                        "Error al guardar cambios",
+                        [data.message || 'Error desconocido']
+                    );
                 }
-            } else if (error.message) {
-                try {
-                    const errorData = JSON.parse(error.message);
-                    setError({
-                        tipo: errorData.tipo,
-                        mensajes: errorData.detalles
-                    });
-                } catch {
-                    setError({
-                        tipo: 'GENERAL',
-                        mensajes: [error.message]
-                    });
-                }
+            } else {
+                // Errores de red
+                alert('Error de conexión: ' + (error.message || 'Por favor intente nuevamente'));
             }
         } finally {
             setIsSaving(false);
@@ -304,6 +368,26 @@ export default function EditarPedido() {
         return combosDisponibles.find(c => c.id === id);
     };
 
+    // Obtener información de un ingrediente por ID
+    const obtenerInfoIngrediente = (ingredienteId) => {
+        return ingredientesAdicionables.find(i => i.id === ingredienteId);
+    };
+
+    const mostrarNotificacionError = (titulo, mensajes) => {
+        notification.error({
+            message: titulo,
+            description: (
+                <List
+                    size="small"
+                    dataSource={mensajes}
+                    renderItem={item => <List.Item>{item}</List.Item>}
+                />
+            ),
+            duration: 0, // No se cierra automáticamente
+            style: { width: 600 },
+        });
+    };
+
     // Función para calcular los subtotales
     const calcularSubtotales = () => {
         const totalProductos = pedido.productos.reduce((total, item) => {
@@ -316,6 +400,11 @@ export default function EditarPedido() {
             return total + (combo?.precio || 0) * item.cantidad;
         }, 0);
 
+        const totalAdiciones = pedido.adiciones.reduce((total, item) => {
+            const ingrediente = obtenerInfoIngrediente(item.ingredienteId);
+            return total + (ingrediente?.precioAdicion || 0) * item.cantidad;
+        }, 0);
+
         // Calcular subtotal de desechables: P1 y C1 cuestan $500 cada uno
         const subtotalP1 = pedido.cantidadP1 * 500;
         const subtotalC1 = pedido.cantidadC1 * 500;
@@ -324,11 +413,12 @@ export default function EditarPedido() {
         // Agregar costo de domicilio si está activado
         const totalDomicilio = pedido.domicilio ? pedido.costoDomicilio : 0;
 
-        const totalGeneral = totalProductos + totalCombos + totalDesechables + totalDomicilio;
+        const totalGeneral = totalProductos + totalCombos + totalAdiciones + totalDesechables + totalDomicilio;
 
         return {
             totalProductos,
             totalCombos,
+            totalAdiciones,
             subtotalP1,
             subtotalC1,
             totalDesechables,
@@ -340,6 +430,7 @@ export default function EditarPedido() {
     const {
         totalProductos,
         totalCombos,
+        totalAdiciones,
         subtotalP1,
         subtotalC1,
         totalDesechables,
@@ -427,7 +518,7 @@ export default function EditarPedido() {
 
                                                     <div className="controles-cantidad">
                                                         <Button
-                                                            type="primary"
+                                                            type={cantidad > 0 ? "primary" : "default"}
                                                             shape="circle"
                                                             icon={<MinusOutlined />}
                                                             onClick={() => actualizarCantidadProducto(producto.id, cantidad - 1)}
@@ -502,7 +593,7 @@ export default function EditarPedido() {
 
                                                     <div className="controles-cantidad">
                                                         <Button
-                                                            type="primary"
+                                                            type={cantidad > 0 ? "primary" : "default"}
                                                             shape="circle"
                                                             icon={<MinusOutlined />}
                                                             onClick={() => actualizarCantidadCombo(combo.id, cantidad - 1)}
@@ -521,6 +612,101 @@ export default function EditarPedido() {
                                                             icon={<PlusOutlined />}
                                                             onClick={() => actualizarCantidadCombo(combo.id, cantidad + 1)}
                                                         />
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        );
+                                    })}
+                            </div>
+                        </TabPane>
+
+                        {/* Nueva pestaña para adiciones */}
+                        <TabPane tab={<span><i className="fas fa-plus-circle"></i> Adiciones</span>} key="3">
+                            <div className="mb-3">
+                                <Input
+                                    placeholder="Buscar adiciones..."
+                                    prefix={<SearchOutlined />}
+                                    value={busquedaAdicion}
+                                    onChange={(e) => setBusquedaAdicion(e.target.value)}
+                                    size="large"
+                                />
+                            </div>
+
+                            <div className="adiciones-grid">
+                                {ingredientesAdicionables
+                                    .filter(a =>
+                                        a.nombre.toLowerCase().includes(busquedaAdicion.toLowerCase())
+                                    )
+                                    .map((ingrediente) => {
+                                        const seleccionado = pedido.adiciones.find(a => a.ingredienteId === ingrediente.id);
+                                        const cantidad = seleccionado?.cantidad || 0;
+                                        const aplicadoA = seleccionado?.aplicadoA || "";
+
+                                        return (
+                                            <Card
+                                                key={ingrediente.id}
+                                                className={`adicion-card ${cantidad > 0 ? 'selected' : ''}`}
+                                                hoverable
+                                            >
+                                                <div className="card-content">
+                                                    <div className="card-header">
+                                                        <h5>{ingrediente.nombre}</h5>
+                                                        <Badge
+                                                            count={cantidad}
+                                                            style={{ backgroundColor: '#faad14' }}
+                                                            className="cantidad-badge"
+                                                        />
+                                                    </div>
+                                                    <p className="card-text">
+                                                        <NumericFormat
+                                                            value={ingrediente.precioAdicion}
+                                                            displayType="text"
+                                                            thousandSeparator=","
+                                                            prefix="$"
+                                                            className="precio"
+                                                        />
+                                                    </p>
+
+                                                    <div className="controles-adicion">
+                                                        <div className="mb-2">
+                                                            <label className="small">Aplicado a:</label>
+                                                            <Input
+                                                                placeholder="Ej: Hamburguesa 1"
+                                                                value={aplicadoA}
+                                                                onChange={(e) => actualizarCantidadAdicion(
+                                                                    ingrediente.id,
+                                                                    cantidad,
+                                                                    e.target.value
+                                                                )}
+                                                                size="small"
+                                                            />
+                                                        </div>
+                                                        <div className="controles-cantidad">
+                                                            <Button
+                                                                type={cantidad > 0 ? "primary" : "default"}
+                                                                shape="circle"
+                                                                icon={<MinusOutlined />}
+                                                                onClick={() => actualizarCantidadAdicion(ingrediente.id, cantidad - 1, aplicadoA)}
+                                                                disabled={cantidad === 0}
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                className="cantidad-input"
+                                                                value={cantidad}
+                                                                onChange={(e) => actualizarCantidadAdicion(
+                                                                    ingrediente.id,
+                                                                    parseInt(e.target.value) || 0,
+                                                                    aplicadoA
+                                                                )}
+                                                                min="0"
+                                                            />
+                                                            <Button
+                                                                type="primary"
+                                                                shape="circle"
+                                                                icon={<PlusOutlined />}
+                                                                onClick={() => actualizarCantidadAdicion(ingrediente.id, cantidad + 1, aplicadoA)}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </Card>
@@ -564,6 +750,15 @@ export default function EditarPedido() {
                             <Descriptions.Item label="Combos">
                                 <NumericFormat
                                     value={totalCombos}
+                                    displayType="text"
+                                    thousandSeparator=","
+                                    prefix="$"
+                                    decimalScale={0}
+                                />
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Adiciones">
+                                <NumericFormat
+                                    value={totalAdiciones}
                                     displayType="text"
                                     thousandSeparator=","
                                     prefix="$"
@@ -634,17 +829,20 @@ export default function EditarPedido() {
                             </Descriptions.Item>
                         </Descriptions>
 
-                        {pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0 ? (
+                        {pedido.productos.length === 0 &&
+                            pedido.combos.length === 0 &&
+                            pedido.adiciones.length === 0 &&
+                            pedido.cantidadP1 === 0 &&
+                            pedido.cantidadC1 === 0 ? (
                             <div className="empty-cart">
                                 <i className="fas fa-shopping-cart fa-3x"></i>
-                                <p>No hay productos o combos en este pedido</p>
+                                <p>No hay productos, combos o adiciones en este pedido</p>
                             </div>
                         ) : (
-                            <div className="resumen-content">
+                            <Collapse defaultActiveKey={['1', '2', '3']} ghost>
                                 {/* Productos seleccionados */}
                                 {pedido.productos.length > 0 && (
-                                    <div className="seccion-resumen">
-                                        <h5>Productos</h5>
+                                    <Panel header="Productos" key="1">
                                         <ul className="lista-resumen">
                                             {pedido.productos.map(item => {
                                                 const producto = obtenerInfoProducto(item.productoId);
@@ -698,13 +896,12 @@ export default function EditarPedido() {
                                                 );
                                             })}
                                         </ul>
-                                    </div>
+                                    </Panel>
                                 )}
 
                                 {/* Combos seleccionados */}
                                 {pedido.combos.length > 0 && (
-                                    <div className="seccion-resumen">
-                                        <h5>Combos</h5>
+                                    <Panel header="Combos" key="2">
                                         <ul className="lista-resumen">
                                             {pedido.combos.map(item => {
                                                 const combo = obtenerInfoCombo(item.comboId);
@@ -758,113 +955,182 @@ export default function EditarPedido() {
                                                 );
                                             })}
                                         </ul>
-                                    </div>
+                                    </Panel>
                                 )}
 
-                                {/* Desechables */}
-                                <div className="seccion-resumen mt-3">
-                                    <h5>Desechables</h5>
-                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                        <div>
-                                            <span>P1</span>
-                                            <small className="text-muted ms-2">(Stock: {stockDesechables.P1})</small>
-                                        </div>
-                                        <InputNumber
-                                            min={0}
-                                            max={stockDesechables.P1}
-                                            value={pedido.cantidadP1}
-                                            onChange={actualizarCantidadP1}
-                                            style={{ width: '80px' }}
-                                        />
-                                    </div>
+                                {/* Adiciones seleccionadas */}
+                                {pedido.adiciones.length > 0 && (
+                                    <Panel header="Adiciones" key="3">
+                                        <ul className="lista-resumen">
+                                            {pedido.adiciones.map(item => {
+                                                const ingrediente = obtenerInfoIngrediente(item.ingredienteId);
+                                                const subtotal = ingrediente ? ingrediente.precioAdicion * item.cantidad : 0;
 
-                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                        <div>
-                                            <span>C1</span>
-                                            <small className="text-muted ms-2">(Stock: {stockDesechables.C1})</small>
-                                        </div>
-                                        <InputNumber
-                                            min={0}
-                                            max={stockDesechables.C1}
-                                            value={pedido.cantidadC1}
-                                            onChange={actualizarCantidadC1}
-                                            style={{ width: '80px' }}
-                                        />
-                                    </div>
+                                                return (
+                                                    <li key={item.ingredienteId} className="item-resumen">
+                                                        <div className="item-info">
+                                                            <div className="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <span className="item-nombre">{item.cantidad}x {ingrediente?.nombre || 'Adición eliminada'}</span>
+                                                                    <div className="text-muted small">
+                                                                        <NumericFormat
+                                                                            value={ingrediente?.precioAdicion || 0}
+                                                                            displayType="text"
+                                                                            thousandSeparator=","
+                                                                            prefix="$ c/u"
+                                                                        />
+                                                                        {item.aplicadoA && (
+                                                                            <div className="aplicado-a">
+                                                                                <small>Aplicado a: {item.aplicadoA}</small>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <span className="item-subtotal">
+                                                                    <NumericFormat
+                                                                        value={subtotal}
+                                                                        displayType="text"
+                                                                        thousandSeparator=","
+                                                                        prefix="$"
+                                                                    />
+                                                                </span>
+                                                            </div>
+                                                            <div className="item-controles">
+                                                                <Button
+                                                                    type="text"
+                                                                    icon={<MinusOutlined />}
+                                                                    onClick={() => actualizarCantidadAdicion(item.ingredienteId, item.cantidad - 1, item.aplicadoA)}
+                                                                />
+                                                                <span className="item-cantidad">{item.cantidad}</span>
+                                                                <Button
+                                                                    type="text"
+                                                                    icon={<PlusOutlined />}
+                                                                    onClick={() => actualizarCantidadAdicion(item.ingredienteId, item.cantidad + 1, item.aplicadoA)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            type="text"
+                                                            icon={<DeleteOutlined />}
+                                                            onClick={() => quitarAdicion(item.ingredienteId)}
+                                                            danger
+                                                        />
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </Panel>
+                                )}
+                            </Collapse>
+                        )}
+
+                        {/* Desechables */}
+                        <div className="seccion-resumen mt-3">
+                            <h5>Desechables</h5>
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <span>P1</span>
+                                    <small className="text-muted ms-2">(Stock: {stockDesechables.P1})</small>
                                 </div>
+                                <InputNumber
+                                    min={0}
+                                    value={pedido.cantidadP1}
+                                    onChange={actualizarCantidadP1}
+                                    style={{ width: '80px' }}
+                                />
+                            </div>
 
-                                <div className="seccion-resumen mt-3">
-                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                        <div className="d-flex align-items-center">
-                                            <HomeOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-                                            <span>Domicilio</span>
-                                        </div>
-                                        <Switch
-                                            checked={pedido.domicilio}
-                                            onChange={checked => setPedido(prev => ({
-                                                ...prev,
-                                                domicilio: checked
-                                            }))}
-                                            checkedChildren="Sí"
-                                            unCheckedChildren="No"
-                                        />
-                                    </div>
-
-                                    {pedido.domicilio && (
-                                        <div className="d-flex justify-content-between align-items-center mt-2">
-                                            <span>Costo de domicilio:</span>
-                                            <InputNumber
-                                                min={0}
-                                                value={pedido.costoDomicilio}
-                                                onChange={value => setPedido(prev => ({
-                                                    ...prev,
-                                                    costoDomicilio: value
-                                                }))}
-                                                formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                                parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                                                style={{ width: '120px' }}
-                                            />
-                                        </div>
-                                    )}
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <span>C1</span>
+                                    <small className="text-muted ms-2">(Stock: {stockDesechables.C1})</small>
                                 </div>
+                                <InputNumber
+                                    min={0}
+                                    value={pedido.cantidadC1}
+                                    onChange={actualizarCantidadC1}
+                                    style={{ width: '80px' }}
+                                />
+                            </div>
+                        </div>
 
-                                {/* Detalles adicionales */}
-                                <div className="detalles-adicionales mt-3">
-                                    <label htmlFor="detalles" className='form-label'>Notas adicionales</label>
-                                    <textarea
-                                        className='form-control'
-                                        id="detalles"
-                                        value={pedido.detalles}
-                                        onChange={(e) => setPedido(prev => ({ ...prev, detalles: e.target.value }))}
-                                        placeholder="Especificaciones especiales, instrucciones de entrega, etc."
-                                        rows="3"
+                        {/* Opciones de domicilio */}
+                        <div className="seccion-resumen mt-3">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                                <div className="d-flex align-items-center">
+                                    <HomeOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                                    <span>Domicilio</span>
+                                </div>
+                                <Switch
+                                    checked={pedido.domicilio}
+                                    onChange={checked => setPedido(prev => ({
+                                        ...prev,
+                                        domicilio: checked
+                                    }))}
+                                    checkedChildren="Sí"
+                                    unCheckedChildren="No"
+                                />
+                            </div>
+
+                            {pedido.domicilio && (
+                                <div className="d-flex justify-content-between align-items-center mt-2">
+                                    <span>Costo de domicilio:</span>
+                                    <InputNumber
+                                        min={0}
+                                        value={pedido.costoDomicilio}
+                                        onChange={value => setPedido(prev => ({
+                                            ...prev,
+                                            costoDomicilio: value
+                                        }))}
+                                        formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                        parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                                        style={{ width: '120px' }}
                                     />
                                 </div>
+                            )}
+                        </div>
 
-                                {/* Botones */}
-                                <div className="botones-resumen mt-3">
-                                    <Button
-                                        type="primary"
-                                        size="large"
-                                        onClick={handleGuardarCambios}
-                                        loading={isSaving}
-                                        disabled={pedido.productos.length === 0 && pedido.combos.length === 0 && pedido.cantidadP1 === 0 && pedido.cantidadC1 === 0}
-                                        block
-                                    >
-                                        {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-                                    </Button>
-                                    <Button
-                                        type="default"
-                                        size="large"
-                                        block
-                                        onClick={() => navigate('/pedidos')}
-                                        className="mt-2"
-                                    >
-                                        Cancelar
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+                        {/* Detalles adicionales */}
+                        <div className="detalles-adicionales mt-3">
+                            <label htmlFor="detalles" className='form-label'>Notas adicionales</label>
+                            <textarea
+                                className='form-control'
+                                id="detalles"
+                                value={pedido.detalles}
+                                onChange={(e) => setPedido(prev => ({ ...prev, detalles: e.target.value }))}
+                                placeholder="Especificaciones especiales, instrucciones de entrega, etc."
+                                rows="3"
+                            />
+                        </div>
+
+                        {/* Botones */}
+                        <div className="botones-resumen mt-3">
+                            <Button
+                                type="primary"
+                                size="large"
+                                onClick={handleGuardarCambios}
+                                loading={isSaving}
+                                disabled={
+                                    pedido.productos.length === 0 &&
+                                    pedido.combos.length === 0 &&
+                                    pedido.adiciones.length === 0 &&
+                                    pedido.cantidadP1 === 0 &&
+                                    pedido.cantidadC1 === 0
+                                }
+                                block
+                            >
+                                {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                            </Button>
+                            <Button
+                                type="default"
+                                size="large"
+                                block
+                                onClick={() => navigate('/pedidos')}
+                                className="mt-2"
+                            >
+                                Cancelar
+                            </Button>
+                        </div>
                     </Card>
                 </Col>
             </Row>

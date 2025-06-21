@@ -50,7 +50,7 @@ public class IngredienteController {
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody Ingrediente ingrediente, BindingResult result) {
 
-        if(result.hasFieldErrors()){
+        if (result.hasFieldErrors()) {
             return validation(result);
         }
 
@@ -59,15 +59,14 @@ public class IngredienteController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@Valid @RequestBody Ingrediente ingrediente, BindingResult result ,@PathVariable Long id ) {
+    public ResponseEntity<?> update(@Valid @RequestBody Ingrediente ingrediente, BindingResult result,
+            @PathVariable Long id) {
 
-
-        if(result.hasFieldErrors()){
+        if (result.hasFieldErrors()) {
             return validation(result);
         }
 
-
-         Optional<Ingrediente> ingredienteOptional = ingredienteService.update(id, ingrediente);
+        Optional<Ingrediente> ingredienteOptional = ingredienteService.update(id, ingrediente);
 
         if (ingredienteOptional.isPresent()) {
             return ResponseEntity.status(HttpStatus.CREATED).body(ingredienteOptional.orElseThrow());
@@ -82,10 +81,15 @@ public class IngredienteController {
         Optional<Ingrediente> ingredienteOptional = ingredienteService.delete(id);
         if (ingredienteOptional.isPresent()) {
             return ResponseEntity.ok().body(ingredienteOptional.orElseThrow());
-        } 
+        }
         return ResponseEntity.notFound().build();
 
+    }
 
+    @GetMapping("/bajo-stock")
+    public ResponseEntity<List<Ingrediente>> getIngredientesBajoStock() {
+        List<Ingrediente> ingredientes = ingredienteService.obtenerIngredientesBajoStock();
+        return ResponseEntity.ok(ingredientes);
     }
 
     private ResponseEntity<?> validation(BindingResult result) {

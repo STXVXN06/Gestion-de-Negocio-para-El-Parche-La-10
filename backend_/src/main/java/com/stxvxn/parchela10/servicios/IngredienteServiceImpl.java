@@ -48,6 +48,9 @@ public class IngredienteServiceImpl implements IIngredienteService {
             ingredienteDb.setNombre(ingrediente.getNombre());
             ingredienteDb.setUnidadMedida(ingrediente.getUnidadMedida());
             ingredienteDb.setCantidadActual(ingrediente.getCantidadActual());
+            ingredienteDb.setCantidadMinima(ingrediente.getCantidadMinima()); 
+            ingredienteDb.setAdicionable(ingrediente.isAdicionable());
+            ingredienteDb.setPrecioAdicion(ingrediente.getPrecioAdicion());
             return Optional.of(ingredienteRepository.save(ingredienteDb));
         }
         return ingredienteOptional;
@@ -64,9 +67,16 @@ public class IngredienteServiceImpl implements IIngredienteService {
         return ingredienteOptional;
     }
 
+    @Transactional(readOnly = true)
     @Override
     public Optional<Ingrediente> findByNombre(String nombre) {
         return ingredienteRepository.findByNombre(nombre);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Ingrediente> obtenerIngredientesBajoStock() {
+        return ingredienteRepository.findIngredientesBajoStock();
     }
 
 }

@@ -129,6 +129,47 @@ export default function ListadoIngredientes() {
         />
 
         <Column
+          title="Cantidad Mínima"
+          dataIndex="cantidadMinima"
+          key="cantidadMinima"
+          align="right"
+          render={(cantidad) => (
+            <Text style={{ fontSize: 15 }}>
+              {cantidad?.toLocaleString() ?? '-'}
+            </Text>
+          )}
+          sorter={(a, b) => a.cantidadMinima - b.cantidadMinima}
+        />
+
+        <Column
+          title="Adicionable"
+          dataIndex="adicionable"
+          key="adicionable"
+          align="center"
+          render={(adicionable) => (
+            adicionable ? <Tag color="green">Sí</Tag> : <Tag color="red">No</Tag>
+          )}
+          sorter={(a, b) => (a.adicionable === b.adicionable ? 0 : a.adicionable ? -1 : 1)}
+        />
+
+        <Column
+          title="Precio de Adición"
+          dataIndex="precioAdicion"
+          key="precioAdicion"
+          align="right"
+          render={(precio, record) => (
+            record.adicionable && precio != null ? (
+              <Text style={{ fontSize: 15 }}>
+                ${precio.toLocaleString()}
+              </Text>
+            ) : (
+              <Text type="secondary">-</Text>
+            )
+          )}
+          sorter={(a, b) => (a.precioAdicion || 0) - (b.precioAdicion || 0)}
+        />
+
+        <Column
           title="Acciones"
           key="acciones"
           fixed="right"

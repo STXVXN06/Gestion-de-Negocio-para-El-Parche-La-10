@@ -1,6 +1,6 @@
 package com.stxvxn.parchela10.entidades;
 
-
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -14,7 +14,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
 @Entity
 @Table(name = "ingredientes")
 @Data
@@ -27,7 +26,7 @@ public class Ingrediente {
     private Long id;
 
     @NotBlank
-    private String nombre;  
+    private String nombre;
 
     @ManyToOne
     @JoinColumn(name = "unidad_medida_id")
@@ -37,6 +36,9 @@ public class Ingrediente {
     private Double cantidadActual;
 
     private boolean adicionable = false;
-    
+
     private Long precioAdicion;
+
+    @Column(nullable = false)
+    private Double cantidadMinima = 0.0;
 }

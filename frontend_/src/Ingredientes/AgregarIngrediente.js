@@ -10,7 +10,8 @@ import {
   Row, 
   Col, 
   Typography, 
-  InputNumber
+  InputNumber,
+  Switch
 } from 'antd';
 import { SaveOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 
@@ -30,7 +31,8 @@ export default function AgregarIngrediente() {
     try {
       const ingredienteParaEnviar = {
         ...values,
-        unidadMedida: { id: values.unidadMedida }
+        unidadMedida: { id: values.unidadMedida },
+        precioAdicion: values.adicionable ? values.precioAdicion : null
       };
       
       await axios.post('http://localhost:9090/api/ingredientes', ingredienteParaEnviar);
@@ -42,6 +44,16 @@ export default function AgregarIngrediente() {
       setLoading(false);
     }
   };
+
+  // Mostrar/ocultar input de precio según el switch
+  const [adicionable, setAdicionable] = useState(false);
+  useEffect(() => {
+    setAdicionable(form.getFieldValue('adicionable'));
+    const unsubscribe = form.subscribe && form.subscribe(({ values }) => {
+      setAdicionable(values.adicionable);
+    });
+    return () => unsubscribe && unsubscribe();
+  }, [form]);
 
   useEffect(() => {
     const cargarUnidades = async () => {
@@ -70,7 +82,6 @@ export default function AgregarIngrediente() {
           onFinish={onFinish}
           initialValues={{ cantidadActual: 0 }}
         >
-          {/* Resto del formulario se mantiene igual */}
           <Row gutter={24}>
             <Col span={24} md={12}>
               <Form.Item
@@ -130,6 +141,55 @@ export default function AgregarIngrediente() {
                 />
               </Form.Item>
             </Col>
+
+            <Col span={24} md={12}>
+              <Form.Item
+                label="Cantidad mínima en stock"
+                name="cantidadMinima"
+                rules={[{ 
+                  required: true, 
+                  message: 'Ingresa la cantidad mínima',
+                  type: 'number',
+                  min: 0
+                }]}
+              >
+                <InputNumber
+                  min={0}
+                  step={0.5}
+                  style={{ width: '100%' }}
+                  size="large"
+                  placeholder="Ej: 10"
+                />
+              </Form.Item>
+            </Col>
+
+            <Col span={24} md={12}>
+              <Form.Item
+                label="¿Es adicionable?"
+                name="adicionable"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Switch checkedChildren="Sí" unCheckedChildren="No" onChange={checked => setAdicionable(checked)} />
+              </Form.Item>
+            </Col>
+            {adicionable && (
+              <Col span={24} md={12}>
+                <Form.Item
+                  label="Precio de la adición"
+                  name="precioAdicion"
+                  rules={[{ required: true, message: 'Ingresa el precio de la adición', type: 'number', min: 0 }]}
+                >
+                  <InputNumber
+                    min={0}
+                    step={100}
+                    style={{ width: '100%' }}
+                    size="large"
+                    placeholder="Ej: 1000"
+                  />
+                </Form.Item>
+              </Col>
+            )}
           </Row>
 
           <Form.Item style={{ marginTop: 32 }}>

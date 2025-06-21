@@ -1,17 +1,18 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Form, 
-  Input, 
-  Select, 
-  Button, 
-  Card, 
-  Row, 
-  Col, 
-  Typography, 
+import {
+  Form,
+  Input,
+  Select,
+  Button,
+  Card,
+  Row,
+  Col,
+  Typography,
   InputNumber,
-  Spin
+  Spin,
+  Switch
 } from 'antd';
 import { SaveOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 
@@ -26,6 +27,9 @@ export default function EditarIngrediente() {
   const [loading, setLoading] = useState(false);
   const [cargando, setCargando] = useState(true);
 
+  // Observa cambios en el campo 'adicionable'
+  const adicionable = Form.useWatch('adicionable', form);
+
   const urlBase = 'http://localhost:9090/api/ingredientes';
   const urlUnidades = 'http://localhost:9090/api/unidadesMedida';
 
@@ -34,9 +38,12 @@ export default function EditarIngrediente() {
     try {
       const ingredienteActualizado = {
         ...values,
-        unidadMedida: { id: values.unidadMedida }
+        unidadMedida: { id: values.unidadMedida },
+        cantidadMinima: values.cantidadMinima,
+        adicionable: values.adicionable,
+        precioAdicion: values.adicionable ? values.precioAdicion : null
       };
-      
+
       await axios.put(`${urlBase}/${id}`, ingredienteActualizado);
       navigate('/ingredientes');
     } catch (error) {
@@ -55,12 +62,14 @@ export default function EditarIngrediente() {
         ]);
 
         setUnidadesMedida(unidadesResponse.data);
-        
         const ingredienteData = ingredienteResponse.data;
         form.setFieldsValue({
           nombre: ingredienteData.nombre,
           unidadMedida: ingredienteData.unidadMedida?.id,
-          cantidadActual: ingredienteData.cantidadActual
+          cantidadActual: ingredienteData.cantidadActual,
+          cantidadMinima: ingredienteData.cantidadMinima,
+          adicionable: ingredienteData.adicionable,
+          precioAdicion: ingredienteData.precioAdicion
         });
       } catch (error) {
         console.error('Error cargando datos:', error);
@@ -93,6 +102,7 @@ export default function EditarIngrediente() {
             initialValues={{ cantidadActual: 0 }}
           >
             <Row gutter={24}>
+              {/* Campo: Nombre */}
               <Col span={24} md={12}>
                 <Form.Item
                   label="Nombre del ingrediente"
@@ -106,6 +116,7 @@ export default function EditarIngrediente() {
                 </Form.Item>
               </Col>
 
+              {/* Campo: Unidad de medida */}
               <Col span={24} md={12}>
                 <Form.Item
                   label="Unidad de medida"
@@ -130,6 +141,7 @@ export default function EditarIngrediente() {
                 </Form.Item>
               </Col>
 
+              {/* Campo: Cantidad actual */}
               <Col span={24} md={12}>
                 <Form.Item
                   label="Cantidad actual"
@@ -150,6 +162,59 @@ export default function EditarIngrediente() {
                   />
                 </Form.Item>
               </Col>
+
+              {/* Campo: Cantidad mínima */}
+              <Col span={24} md={12}>
+                <Form.Item
+                  label="Cantidad mínima en stock"
+                  name="cantidadMinima"
+                  rules={[{ 
+                    required: true, 
+                    message: 'Ingresa la cantidad mínima',
+                    type: 'number',
+                    min: 0
+                  }]}
+                >
+                  <InputNumber
+                    min={0}
+                    step={0.5}
+                    style={{ width: '100%' }}
+                    size="large"
+                    placeholder="Ej: 10"
+                  />
+                </Form.Item>
+              </Col>
+
+              {/* Campo: ¿Es adicionable? */}
+              <Col span={24} md={12}>
+                <Form.Item
+                  label="¿Es adicionable?"
+                  name="adicionable"
+                  valuePropName="checked"
+                  initialValue={false}
+                >
+                  <Switch checkedChildren="Sí" unCheckedChildren="No" />
+                </Form.Item>
+              </Col>
+
+              {/* Campo: Precio de la adición (condicional) */}
+              {adicionable && (
+                <Col span={24} md={12}>
+                  <Form.Item
+                    label="Precio de la adición"
+                    name="precioAdicion"
+                    rules={[{ required: true, message: 'Ingresa el precio de la adición', type: 'number', min: 0 }]}
+                  >
+                    <InputNumber
+                      min={0}
+                      step={100}
+                      style={{ width: '100%' }}
+                      size="large"
+                      placeholder="Ej: 1000"
+                    />
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
 
             <Form.Item style={{ marginTop: 32 }}>

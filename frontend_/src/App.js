@@ -18,6 +18,7 @@ import './app.css'
 import ListadoCombos from "./Combos/ListadoCombos";
 import AgregarCombo from "./Combos/AgregarCombo";
 import EditarCombo from "./Combos/EditarCombo";
+import Reporte from "./Estadisticas/Reporte";
 
 const { Header, Content } = Layout;
 
@@ -47,6 +48,7 @@ function App() {
             <Route path="/combos" element={<ListadoCombos />} />
             <Route path="/agregarCombo" element={<AgregarCombo />} />
             <Route path="/editarCombo/:id" element={<EditarCombo />} />
+            <Route path="/reportes" element={<Reporte />} />
           </Routes>
         </Content>
       </Layout>

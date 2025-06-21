@@ -40,6 +40,7 @@ import com.stxvxn.parchela10.entidades.PedidoCombo;
 import com.stxvxn.parchela10.entidades.PedidoProducto;
 import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
+import com.stxvxn.parchela10.repositorios.AdicionPedidoRepository;
 import com.stxvxn.parchela10.repositorios.PedidoComboRepository;
 import com.stxvxn.parchela10.servicios.ComboServiceImpl;
 import com.stxvxn.parchela10.servicios.IngredienteServiceImpl;
@@ -74,6 +75,9 @@ public class PedidoController {
     @Autowired
     private PedidoComboRepository pedidoComboRepo;
 
+    @Autowired
+    private AdicionPedidoRepository adicionPedidoRepository;
+
     @PostMapping
     public ResponseEntity<?> crearPedido(@RequestBody PedidoRequestDTO pedidoDTO) {
 
@@ -91,7 +95,7 @@ public class PedidoController {
         Long total = 0L;
         List<PedidoProducto> pedidoProductos = new ArrayList<>();
         List<PedidoCombo> pedidoCombos = new ArrayList<>();
-        Map<Long, Double> ingredientesRequeridos = new HashMap<>();
+        Map<Long, Double> totalRequerimientos = new HashMap<>();
 
         // Map para errores de combos
         Map<Long, String> combosErrors = new HashMap<>();
@@ -108,7 +112,7 @@ public class PedidoController {
             total += producto.getPrecio() * item.getCantidad();
 
             // Acumular ingredientes
-            acumularIngredientes(producto, item.getCantidad(), ingredientesRequeridos);
+            acumularIngredientes(producto, item.getCantidad(), totalRequerimientos);
         }
 
         // 2. Procesar combos
@@ -137,7 +141,7 @@ public class PedidoController {
             total += precioCombo * comboItem.getCantidad();
 
             // Acumular ingredientes del combo
-            acumularIngredientesCombo(combo, comboItem.getCantidad(), ingredientesRequeridos);
+            acumularIngredientesCombo(combo, comboItem.getCantidad(), totalRequerimientos);
         }
 
         if (!combosErrors.isEmpty()) {
@@ -147,8 +151,35 @@ public class PedidoController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        // Validación de stock (unificada para productos y combos)
-        List<String> erroresStock = validarStock(ingredientesRequeridos);
+        // 3. Procesar adiciones
+        List<AdicionPedido> adiciones = new ArrayList<>();
+
+        for (AdicionRequestDTO adicionDTO : pedidoDTO.getAdiciones()) {
+            Ingrediente ingrediente = ingredienteService.findById(adicionDTO.getIngredienteId())
+                    .orElseThrow(() -> new RuntimeException("Ingrediente no encontrado"));
+
+            // Validar que sea adicionable
+            if (!ingrediente.isAdicionable()) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "El ingrediente " + ingrediente.getNombre() + " no es adicionable"));
+            }
+
+            // Acumular para validación de stock
+            totalRequerimientos.merge(
+                    adicionDTO.getIngredienteId(),
+                    (double) adicionDTO.getCantidad(),
+                    Double::sum);
+
+            // Crear entidad
+            AdicionPedido adicion = new AdicionPedido();
+            adicion.setIngrediente(ingrediente);
+            adicion.setCantidad(adicionDTO.getCantidad());
+            adicion.setAplicadoA(adicionDTO.getAplicadoA());
+            adiciones.add(adicion);
+        }
+
+        // Validación de stock (unificada para productos - combos - adiciones)
+        List<String> erroresStock = validarStock(totalRequerimientos);
         if (!erroresStock.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "mensaje", "Stock insuficiente",
@@ -170,39 +201,6 @@ public class PedidoController {
         }
 
         total += pedido.getCostoDomicilio();
-
-        // 3. Procesar adiciones
-        List<AdicionPedido> adiciones = new ArrayList<>();
-        Map<Long, Double> adicionesRequeridas = new HashMap<>(); // Para validación de stock
-
-        for (AdicionRequestDTO adicionDTO : pedidoDTO.getAdiciones()) {
-            Ingrediente ingrediente = ingredienteService.findById(adicionDTO.getIngredienteId())
-                    .orElseThrow(() -> new RuntimeException("Ingrediente no encontrado"));
-
-            // Validar que sea adicionable
-            if (!ingrediente.isAdicionable()) {
-                return ResponseEntity.badRequest().body(
-                        Map.of("error", "El ingrediente " + ingrediente.getNombre() + " no es adicionable"));
-            }
-
-            // Acumular para validación de stock
-            adicionesRequeridas.merge(ingrediente.getId(), (double) adicionDTO.getCantidad(), Double::sum);
-
-            // Crear entidad
-            AdicionPedido adicion = new AdicionPedido();
-            adicion.setIngrediente(ingrediente);
-            adicion.setCantidad(adicionDTO.getCantidad());
-            adicion.setAplicadoA(adicionDTO.getAplicadoA());
-            adiciones.add(adicion);
-        }
-
-        // Validar stock de adiciones
-        List<String> erroresAdiciones = validarStock(adicionesRequeridas);
-        if (!erroresAdiciones.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "mensaje", "Stock insuficiente para adiciones",
-                    "detalles", erroresAdiciones));
-        }
 
         long costoAdiciones = adiciones.stream()
                 .mapToLong(a -> a.getIngrediente().getPrecioAdicion() * a.getCantidad())
@@ -244,7 +242,8 @@ public class PedidoController {
             Ingrediente ing = ingredienteService.findById(entry.getKey()).orElseThrow();
             if (ing.getCantidadActual() < entry.getValue()) {
                 errores.add(String.format("%s: Requerido %.2f, Disponible %.2f",
-                        ing.getNombre(), entry.getValue(), ing.getCantidadActual()));
+                        ing.getNombre(), entry.getValue(), ing.getCantidadActual(),
+                        ing.getUnidadMedida().getSimbolo()));
             }
         }
         return errores;
@@ -294,7 +293,8 @@ public class PedidoController {
             dto.setCombos(mapearCombos(combos));
 
             // Adiciones
-            dto.setAdiciones(mapearAdiciones(pedido.getAdiciones()));
+            List<AdicionPedido> adiciones = adicionPedidoRepository.findByPedidoIdWithIngrediente(pedido.getId());
+            dto.setAdiciones(mapearAdiciones(adiciones));
             dtos.add(dto);
         }
         return ResponseEntity.ok(dtos);
@@ -339,6 +339,7 @@ public class PedidoController {
         return adiciones.stream().map(a -> {
             AdicionResponseDTO dto = new AdicionResponseDTO();
             dto.setId(a.getId());
+            dto.setIngredienteId(a.getIngrediente().getId());
             dto.setNombreIngrediente(a.getIngrediente().getNombre());
             dto.setCantidad(a.getCantidad());
             dto.setPrecioAdicion(a.getIngrediente().getPrecioAdicion());
@@ -381,7 +382,8 @@ public class PedidoController {
                     }).toList();
 
             dto.setProductos(productosDTO);
-            dto.setAdiciones(mapearAdiciones(pedido.getAdiciones()));
+            List<AdicionPedido> adiciones = adicionPedidoRepository.findByPedidoIdWithIngrediente(pedido.getId());
+            dto.setAdiciones(mapearAdiciones(adiciones));
 
             return ResponseEntity.ok().body(dto);
         } else {
@@ -449,8 +451,8 @@ public class PedidoController {
             Map<Long, Integer> cantidadesOriginalesCombos = combosActuales.stream()
                     .collect(Collectors.toMap(pc -> pc.getCombo().getId(), PedidoCombo::getCantidad));
 
-            Integer cantidadP1Original = pedido.getCantidadP1();
-            Integer cantidadC1Original = pedido.getCantidadC1();
+            Integer cantidadP1Original = pedido.getCantidadP1() != null ? pedido.getCantidadP1() : 0;
+            Integer cantidadC1Original = pedido.getCantidadC1() != null ? pedido.getCantidadC1() : 0;
 
             // 3. Validar nuevos datos y calcular requerimientos
             Map<Long, Double> requerimientosIngredientes = new HashMap<>();
@@ -473,19 +475,17 @@ public class PedidoController {
             // Procesar combos eliminados
             for (Long comboId : combosEliminados) {
                 int cantidadOriginal = cantidadesOriginalesCombos.get(comboId);
-                Combo combo = comboService.findById(comboId)
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
 
                 List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(comboId);
                 for (ComboProducto cp : productosCombo) {
                     List<ProductoIngrediente> ingredientes = productoIngredienteService
                             .obtenerIngredientesDeProducto(cp.getProducto().getId());
-
                     for (ProductoIngrediente pi : ingredientes) {
-                        Ingrediente ing = pi.getIngrediente();
                         double cantidadDevuelta = pi.getCantidadNecesaria() * cp.getCantidad() * cantidadOriginal;
-                        ing.setCantidadActual(ing.getCantidadActual() + cantidadDevuelta);
-                        ingredienteService.save(ing);
+                        requerimientosIngredientes.merge(
+                                pi.getIngrediente().getId(),
+                                -cantidadDevuelta,
+                                Double::sum);
                     }
                 }
             }
@@ -556,58 +556,70 @@ public class PedidoController {
             int diferenciaP1 = nuevoP1 - cantidadP1Original;
             int diferenciaC1 = nuevoC1 - cantidadC1Original;
 
-            // Validar stock para desechables si hay aumento
+            // Lista unificada para errores de stock
+            List<String> erroresStock = new ArrayList<>();
+
+            // Validar stock para desechables
             if (diferenciaP1 > 0 || diferenciaC1 > 0) {
                 List<String> erroresDesechables = validarStockDesechables(diferenciaP1, diferenciaC1);
-                if (!erroresDesechables.isEmpty()) {
-                    return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                            Map.of(
-                                    "tipo", "STOCK_INSUFICIENTE_DESECHABLES",
-                                    "detalles", erroresDesechables));
-                }
+                erroresStock.addAll(erroresDesechables);
             }
-
-            ajustarStockDesechables(diferenciaP1, diferenciaC1);
 
             // 7. Actualizar pedido con nuevos desechables
             pedido.setCantidadP1(nuevoP1);
             pedido.setCantidadC1(nuevoC1);
 
             pedido.setDomicilio(dto.isDomicilio());
-            pedido.setCostoDomicilio(dto.getCostoDomicilio());
-            nuevoTotal += (nuevoP1 + nuevoC1) * 500;
+            Long nuevoCostoDomicilio = dto.getCostoDomicilio() != null ? dto.getCostoDomicilio() : 0L;
+            pedido.setCostoDomicilio(nuevoCostoDomicilio);
+            nuevoTotal += (long) ((nuevoP1 + nuevoC1) * 500);
 
             if (dto.isDomicilio()) {
-                nuevoTotal += dto.getCostoDomicilio();
+                if (nuevoCostoDomicilio == 0L) {
+                    nuevoCostoDomicilio = 2000L; // Valor por defecto si no se especifica
+                    pedido.setCostoDomicilio(nuevoCostoDomicilio);
+                }
+                nuevoTotal += nuevoCostoDomicilio;
             }
 
-            // 4. Validar stock solo para incrementos
-            List<String> erroresStock = new ArrayList<>();
+            // Validar stock de productos y combos
             requerimientosIngredientes.forEach((ingredienteId, ajuste) -> {
                 if (ajuste > 0) {
                     Ingrediente ingrediente = ingredienteService.findById(ingredienteId)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                                     "Error en ingrediente: " + ingredienteId));
-
                     if (ingrediente.getCantidadActual() < ajuste) {
-                        erroresStock.add(String.format("%s - Requerido: %.2f, Disponible: %.2f",
-                                ingrediente.getNombre(), ajuste, ingrediente.getCantidadActual()));
+                        erroresStock.add(String.format(
+                                "Producto/Combo: %s - Requerido: %.2f, Disponible: %.2f",
+                                ingrediente.getNombre(),
+                                ajuste,
+                                ingrediente.getCantidadActual()));
                     }
                 }
             });
 
+            // Validar stock de adiciones (solo validación, no modificar pedido aún)
+            List<AdicionPedido> adicionesActuales = adicionPedidoRepository
+                    .findByPedidoIdWithIngrediente(pedido.getId());
+            pedidoService.actualizarAdiciones(pedido, dto.getAdiciones(), adicionesActuales, erroresStock);
+
+            // Si hay errores, devolverlos todos juntos y NO modificar nada
             if (!erroresStock.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                        Map.of(
-                                "tipo", "STOCK_INSUFICIENTE",
-                                "detalles", erroresStock));
+                Map<String, Object> response = new HashMap<>();
+                response.put("tipo", "STOCK_INSUFICIENTE");
+                response.put("detalles", erroresStock);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
             }
+
+            // Si no hay errores, ahora sí modificar stock y pedido
+
+            ajustarStockDesechables(diferenciaP1, diferenciaC1);
 
             // 5. Actualizar relaciones
             actualizarProductosPedido(pedido, dto, productosActuales);
             actualizarCombosPedido(pedido, dto, combosActuales);
 
-            // 6. Ajustar stock
+            // 6. Ajustar stock de ingredientes
             requerimientosIngredientes.forEach((ingredienteId, ajuste) -> {
                 Ingrediente ingrediente = ingredienteService.findById(ingredienteId)
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR));
@@ -615,17 +627,29 @@ public class PedidoController {
                 ingredienteService.save(ingrediente);
             });
 
+            // Procesar adiciones (ahora sí modificar pedido)
+            pedido = pedidoService.actualizarAdiciones(pedido, dto.getAdiciones(), adicionesActuales, null)
+                    .orElseThrow();
+
+            // Recalcular total incluyendo adiciones
+            long totalAdiciones = pedido.getAdiciones().stream()
+                    .mapToLong(a -> a.getIngrediente().getPrecioAdicion() * a.getCantidad())
+                    .sum();
+
+            nuevoTotal += totalAdiciones;
+
             // 7. Actualizar pedido
             pedido.setDetalles(dto.getDetalles());
             pedido.setTotal(nuevoTotal);
             Pedido pedidoActualizado = pedidoService.actualizar(pedidoId, pedido)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR));
+                    .orElseThrow();
 
             return ResponseEntity.ok(pedidoActualizado);
 
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
+            e.printStackTrace(); // Esto imprime el error real en la consola/log
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "Error procesando edición: " + e.getMessage());

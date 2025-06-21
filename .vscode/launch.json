@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Parchela10Application<parchela10>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.stxvxn.parchela10.Parchela10Application",
+            "projectName": "parchela10",
+            "args": "",
+            "envFile": "${workspaceFolder}/backend_/.env"
+        }
+    ]
+}

@@ -13,6 +13,7 @@ public class EditarPedidoDTO {
     private List<ComboCantidadDTO> combos; // Nuevo campo
     private Integer cantidadP1;
     private Integer cantidadC1;
+    private List<AdicionEditDTO> adiciones;
 
     @PositiveOrZero(message = "El costo de domicilio debe ser positivo")
     private Long costoDomicilio;
@@ -30,5 +31,13 @@ public class EditarPedidoDTO {
 
         private Long comboId;
         private Integer cantidad;
+    }
+
+    @Data
+    public static class AdicionEditDTO {
+        private Long id; // ID existente para ediciones
+        private Long ingredienteId;
+        private Integer cantidad;
+        private String aplicadoA;
     }
 }

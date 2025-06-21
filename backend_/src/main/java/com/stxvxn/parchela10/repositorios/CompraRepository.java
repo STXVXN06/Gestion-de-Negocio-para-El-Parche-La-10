@@ -1,6 +1,8 @@
 package com.stxvxn.parchela10.repositorios;
 
+
 import org.springframework.data.repository.CrudRepository;
+
 import com.stxvxn.parchela10.entidades.Compra;
 
 /**
