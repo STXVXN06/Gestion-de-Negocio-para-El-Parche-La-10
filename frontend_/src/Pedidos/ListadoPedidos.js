@@ -30,7 +30,9 @@ import {
   ClockCircleOutlined,
   DownOutlined,
   UpOutlined,
-  MailOutlined
+  MailOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled
 } from '@ant-design/icons';
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -39,6 +41,7 @@ import './ListadoPedidos.css';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ListadoPedidos() {
   const navigate = useNavigate();
@@ -60,6 +63,8 @@ export default function ListadoPedidos() {
   const [emailCliente, setEmailCliente] = useState('');
   const [enviandoFactura, setEnviandoFactura] = useState(false);
   const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState(null);
+  const [mensajeEnvio, setMensajeEnvio] = useState(null);
+  const [tipoMensaje, setTipoMensaje] = useState(null); // 'exito' o 'error'
 
   useEffect(() => {
     cargarPedidos();
@@ -121,7 +126,7 @@ export default function ListadoPedidos() {
           ? { ...pedido, estado: nuevoEstado, metodoPago }
           : pedido
       ));
-      
+
       if (nuevoEstado === 'ENTREGADO') {
         setMetodoPagoSeleccionado(metodoPago);
         setModalFacturaVisible(true);
@@ -148,31 +153,43 @@ export default function ListadoPedidos() {
   };
 
   const enviarFactura = async () => {
+    // Limpiar mensajes previos
+    setMensajeEnvio(null);
+    setTipoMensaje(null);
+
+    // Validación de formato de correo
     if (!emailCliente) {
-      notification.error({
-        message: 'Error',
-        description: 'Por favor ingrese un correo electrónico',
-      });
+      setTipoMensaje('error');
+      setMensajeEnvio('Por favor ingrese un correo electrónico');
+      return;
+    }
+
+    if (!emailRegex.test(emailCliente)) {
+      setTipoMensaje('error');
+      setMensajeEnvio('Por favor ingrese un correo electrónico válido');
       return;
     }
 
     try {
       setEnviandoFactura(true);
       await axios.post(`${urlBase}/${pedidoSeleccionado.id}/enviarFactura?email=${emailCliente}`);
-      
-      notification.success({
-        message: 'Factura enviada',
-        description: 'La factura ha sido enviada con éxito al correo proporcionado.',
-      });
-      
-      setModalFacturaVisible(false);
-      setEmailCliente('');
+
+      // Mensaje de éxito
+      setTipoMensaje('exito');
+      setMensajeEnvio(`¡Factura enviada correctamente a ${emailCliente}!`);
+
+      // Cerrar modal después de 2 segundos
+      setTimeout(() => {
+        setModalFacturaVisible(false);
+        setEmailCliente('');
+        setMensajeEnvio(null);
+        setTipoMensaje(null);
+      }, 2000);
+
     } catch (error) {
       console.error("Error enviando factura:", error);
-      notification.error({
-        message: 'Error',
-        description: 'No se pudo enviar la factura. Por favor, intente nuevamente.',
-      });
+      setTipoMensaje('error');
+      setMensajeEnvio('Error al enviar la factura. Por favor intente nuevamente.');
     } finally {
       setEnviandoFactura(false);
     }
@@ -542,6 +559,8 @@ export default function ListadoPedidos() {
                     e.stopPropagation();
                     setPedidoSeleccionado(pedido);
                     setModalFacturaVisible(true);
+                    setMensajeEnvio(null);
+                    setTipoMensaje(null);
                   }}
                   className="action-btn"
                 >
@@ -700,22 +719,27 @@ export default function ListadoPedidos() {
         onCancel={() => {
           setModalFacturaVisible(false);
           setEmailCliente('');
+          setMensajeEnvio(null);
+          setTipoMensaje(null);
         }}
         footer={[
-          <Button 
-            key="cancelar" 
+          <Button
+            key="cancelar"
             onClick={() => {
               setModalFacturaVisible(false);
               setEmailCliente('');
+              setMensajeEnvio(null);
+              setTipoMensaje(null);
             }}
           >
             Cancelar
           </Button>,
-          <Button 
-            key="enviar" 
-            type="primary" 
+          <Button
+            key="enviar"
+            type="primary"
             onClick={enviarFactura}
             loading={enviandoFactura}
+            disabled={!!mensajeEnvio}
           >
             Enviar Factura
           </Button>
@@ -727,7 +751,7 @@ export default function ListadoPedidos() {
           <div className="modal-header">
             <h4>Pedido #{pedidoSeleccionado?.id}</h4>
             <div className="modal-total">
-              Total: 
+              Total:
               <NumericFormat
                 value={pedidoSeleccionado?.total}
                 displayType="text"
@@ -738,15 +762,26 @@ export default function ListadoPedidos() {
           </div>
 
           <p className="modal-text">Ingrese el correo electrónico del cliente:</p>
-          
+
           <Input
             type="email"
             value={emailCliente}
             onChange={(e) => setEmailCliente(e.target.value)}
             placeholder="correo@ejemplo.com"
             className="email-input"
+            status={emailCliente && !emailRegex.test(emailCliente) ? "error" : ""}
+            disabled={!!mensajeEnvio}
           />
-          
+
+          {mensajeEnvio && (
+            <div className={`mensaje-envio ${tipoMensaje}`}>
+              {tipoMensaje === 'exito'
+                ? <CheckCircleFilled className="icono-mensaje" />
+                : <CloseCircleFilled className="icono-mensaje" />}
+              <span>{mensajeEnvio}</span>
+            </div>
+          )}
+
           {metodoPagoSeleccionado && (
             <p className="modal-info">
               Método de pago: <Tag color={metodoPagoSeleccionado === 'EFECTIVO' ? 'green' : 'blue'}>

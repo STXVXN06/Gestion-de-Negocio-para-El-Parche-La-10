@@ -494,3 +494,31 @@
   font-size: 11px;
   color: #95a5a6;
 }
+
+/* Mensajes de envio */
+.mensaje-envio {
+  margin-top: 15px;
+  padding: 12px 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.mensaje-envio.exito {
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.mensaje-envio.error {
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #ff4d4f;
+}
+
+.icono-mensaje {
+  font-size: 18px;
+}
