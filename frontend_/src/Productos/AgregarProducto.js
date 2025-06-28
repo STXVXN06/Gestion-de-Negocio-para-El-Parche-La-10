@@ -110,6 +110,7 @@ export default function AgregarProducto() {
                   <option value="Arepa">Arepa</option>
                   <option value="Sandwich">Sandwich</option>
                   <option value="Bebida">Bebida</option>
+                  <option value="Otro">Otro</option>
               </select>
           </div>
           <div className='mb-3'>

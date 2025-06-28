@@ -30,7 +30,7 @@ public class Combo {
 
     @NotNull
     @PositiveOrZero
-    private Double descuento; // 0.15 = 15%
+    private Long precio; 
 
     @NotNull
     private Boolean activo = true;

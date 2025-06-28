@@ -19,7 +19,5 @@ public interface IComboService {
 
     Optional<Combo> findById(Long id);
 
-    Long calcularPrecioCombo(Long comboId);
-
     List<ComboProducto> obtenerProductoDelCombo(Long comboId);
 }

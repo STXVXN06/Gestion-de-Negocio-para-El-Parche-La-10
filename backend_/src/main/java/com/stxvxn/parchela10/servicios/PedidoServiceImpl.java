@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -15,8 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
-import com.stxvxn.parchela10.DTO.PedidoComboDTO;
-import com.stxvxn.parchela10.DTO.PedidoRequestDTO;
 import com.stxvxn.parchela10.entidades.AdicionPedido;
 import com.stxvxn.parchela10.entidades.Caja;
 import com.stxvxn.parchela10.entidades.ComboProducto;
@@ -25,7 +22,6 @@ import com.stxvxn.parchela10.entidades.MovimientoCaja;
 import com.stxvxn.parchela10.entidades.Pedido;
 import com.stxvxn.parchela10.entidades.PedidoCombo;
 import com.stxvxn.parchela10.entidades.PedidoProducto;
-import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
 import com.stxvxn.parchela10.repositorios.AdicionPedidoRepository;
 import com.stxvxn.parchela10.repositorios.ComboProductoRepository;
@@ -70,11 +66,7 @@ public class PedidoServiceImpl implements IPedidoService {
     @Autowired
     private ComboProductoRepository comboProductoRepo;
 
-    @Autowired
-    private ProductoServiceImpl productoService;
 
-    @Autowired
-    private ComboServiceImpl comboService;
 
     @Transactional
     @Override

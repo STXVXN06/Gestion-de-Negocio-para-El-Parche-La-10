@@ -10,7 +10,7 @@ public class ComboDTO {
     private Long id;
     private String nombre;
     private String descripcion;
-    private Double descuento;
+    private Long precio;
     private Boolean activo;
     private List<ComboItemDTO> productos;
 

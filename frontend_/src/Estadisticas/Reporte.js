@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  Tabs, DatePicker, Card, Statistic, Table, List, Input, Button, Tag, Row, Col,
-  Progress, Tooltip, Spin, Alert
+  Tabs, Card, Statistic, Table, List, Input, Button, Tag, Row, Col,
+  Tooltip, Spin, Alert
 } from 'antd';
 import {
   DollarOutlined, ShoppingOutlined, ArrowUpOutlined, ArrowDownOutlined,
@@ -10,61 +10,94 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format, startOfDay, endOfDay, subYears, addYears } from 'date-fns';
+import './Reporte.css';
 
 const { TabPane } = Tabs;
-const { RangePicker } = DatePicker;
 
 const API_BASE_URL = 'http://localhost:9090/api';
 
 const Reporte = () => {
   const [activeTab, setActiveTab] = useState('ganancias');
-  const [fechas, setFechas] = useState([
-    moment().startOf('day'),
-    moment().endOf('day')
-  ]);
+  const [fechasTemporales, setFechasTemporales] = useState([null, null]);
+  const [fechasActivas, setFechasActivas] = useState({
+    startDate: null,
+    endDate: null
+  });
   const [ganancias, setGanancias] = useState(0);
   const [ingresos, setIngresos] = useState(0);
   const [gastos, setGastos] = useState(0);
   const [transacciones, setTransacciones] = useState([]);
-  const [ingredientesBajos, setIngredientesBajos] = useState([]);
+  const [todosIngredientesBajos, setTodosIngredientesBajos] = useState([]);
+  const [ingredientesBajosAMostrar, setIngredientesBajosAMostrar] = useState([]);
   const [nuevoItem, setNuevoItem] = useState('');
   const [listaCompras, setListaCompras] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Función para limitar fechas seleccionables
-  const disabledDate = (current) => {
-    // Permitir solo fechas dentro de 1 año hacia atrás y 1 año hacia adelante
-    return current < moment().subtract(1, 'year').endOf('day') ||
-      current > moment().add(1, 'year').endOf('day');
+  // Función para establecer horas fijas
+  const setFixedTimes = (date, isStart) => {
+    const newDate = new Date(date);
+    if (isStart) {
+      newDate.setHours(0, 0, 0, 0); // 00:00 AM
+    } else {
+      newDate.setHours(23, 59, 59, 999); // 11:59 PM
+    }
+    return newDate;
+  };
+
+  // Restablecer a fecha actual con horas fijas
+  const restablecerFechas = () => {
+    const hoy = new Date();
+    const hoyInicio = setFixedTimes(hoy, true);
+    const hoyFin = setFixedTimes(hoy, false);
+
+    setFechasTemporales([hoyInicio, hoyFin]);
+    setFechasActivas({
+      startDate: hoyInicio,
+      endDate: hoyFin
+    });
   };
 
   // Obtener datos de la API
   const obtenerDatos = async () => {
+    if (!fechasActivas.startDate || !fechasActivas.endDate) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      // Formato corregido: fechas ISO con hora
       const params = {
-        fechaInicio: fechas[0].toISOString(),
-        fechaFin: fechas[1].toISOString()
+        fechaInicio: format(fechasActivas.startDate, "yyyy-MM-dd'T'HH:mm:ss"),
+        fechaFin: format(fechasActivas.endDate, "yyyy-MM-dd'T'HH:mm:ss")
       };
 
+      // Obtener todos los datos necesarios
       const [gananciasRes, ingresosRes, gastosRes, transaccionesRes, ingredientesRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/reportes/ganancias`, { params }),
         axios.get(`${API_BASE_URL}/reportes/ingresos`, { params }),
         axios.get(`${API_BASE_URL}/reportes/egresos`, { params }),
-        axios.get(`${API_BASE_URL}/movimientosCaja`, { params }),
+        axios.get(`${API_BASE_URL}/movimientosCaja`),
         axios.get(`${API_BASE_URL}/ingredientes/bajo-stock`)
       ]);
 
       setGanancias(gananciasRes.data);
       setIngresos(ingresosRes.data);
       setGastos(gastosRes.data);
-      setTransacciones(transaccionesRes.data);
-      setIngredientesBajos(ingredientesRes.data);
+      setTodosIngredientesBajos(ingredientesRes.data);
+      setIngredientesBajosAMostrar(ingredientesRes.data);
+
+      // Filtrar y ordenar transacciones
+      const transaccionesFiltradas = transaccionesRes.data
+        .filter(t => {
+          const fechaTrans = new Date(t.fecha);
+          return fechaTrans >= fechasActivas.startDate && fechaTrans <= fechasActivas.endDate;
+        })
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // Orden descendente (más reciente primero)
+
+      setTransacciones(transaccionesFiltradas);
 
     } catch (err) {
       setError('Error al obtener los datos. Verifica la conexión con el servidor.');
@@ -74,19 +107,28 @@ const Reporte = () => {
     }
   };
 
-  // Manejar cambio de fechas (CORREGIDO)
-  const cambiarFechas = (dates) => {
-    if (!dates || dates.length !== 2) {
-      // Resetear a HOY si se cancela
-      setFechas([moment().startOf('day'), moment().endOf('day')]);
-      return;
+  // Manejar cambios en el calendario
+  const handleDateChange = (dates) => {
+    const [start, end] = dates;
+
+    // Crear copias de las fechas para no mutar el estado directamente
+    const adjustedDates = [...dates];
+
+    // Ajustar la hora de la fecha fin si existe
+    if (end) {
+      const newEnd = new Date(end);
+      newEnd.setHours(23, 59, 59, 999);
+      adjustedDates[1] = newEnd;
     }
 
-    // Ajustar a horas fijas (00:00:00 y 23:59:59)
-    const fechaInicio = dates[0].startOf('day');
-    const fechaFin = dates[1].endOf('day');
+    setFechasTemporales(adjustedDates);
 
-    setFechas([fechaInicio, fechaFin]);
+    if (start && end) {
+      setFechasActivas({
+        startDate: setFixedTimes(start, true),
+        endDate: setFixedTimes(end, false)
+      });
+    }
   };
 
   // Agregar un nuevo ítem a la lista de compras
@@ -95,7 +137,8 @@ const Reporte = () => {
       setListaCompras([...listaCompras, {
         id: Date.now(),
         nombre: nuevoItem,
-        completado: false
+        completado: false,
+        esIngrediente: false
       }]);
       setNuevoItem('');
     }
@@ -103,12 +146,20 @@ const Reporte = () => {
 
   // Agregar ingrediente a la lista de compras
   const agregarIngredienteALista = (ingrediente) => {
-    setListaCompras([...listaCompras, {
+    const nuevoItem = {
       id: ingrediente.id,
       nombre: ingrediente.nombre,
       cantidad: `${(ingrediente.cantidadMinima - ingrediente.cantidadActual).toFixed(2)} ${ingrediente.unidadMedida?.simbolo || ''}`,
-      completado: false
-    }]);
+      completado: false,
+      esIngrediente: true
+    };
+
+    setListaCompras([...listaCompras, nuevoItem]);
+
+    // Eliminar de la lista de ingredientes bajos
+    setIngredientesBajosAMostrar(
+      ingredientesBajosAMostrar.filter(ing => ing.id !== ingrediente.id)
+    );
   };
 
   // Marcar item como completado
@@ -122,34 +173,91 @@ const Reporte = () => {
 
   // Eliminar item de la lista
   const eliminarItem = (id) => {
+    const item = listaCompras.find(item => item.id === id);
+
+    // Si es un ingrediente, volver a agregarlo a la lista de ingredientes bajos
+    if (item && item.esIngrediente) {
+      const ingredienteOriginal = todosIngredientesBajos.find(ing => ing.id === id);
+      if (ingredienteOriginal) {
+        setIngredientesBajosAMostrar([...ingredientesBajosAMostrar, ingredienteOriginal]);
+      }
+    }
+
     setListaCompras(listaCompras.filter(item => item.id !== id));
   };
 
   // Generar PDF del reporte de ganancias
   const generarPDFReporteGanancias = () => {
-    const input = document.getElementById('reporte-ganancias');
+    const pdf = new jsPDF('p', 'mm', 'a4');
 
-    html2canvas(input, { scale: 2 }).then(canvas => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = canvas.height * imgWidth / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+    // Título
+    pdf.setFontSize(18);
+    pdf.text('Reporte de Ganancias', 105, 15, null, null, 'center');
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+    // Período
+    pdf.setFontSize(12);
+    pdf.text(
+      `Período: ${format(fechasActivas.startDate, 'dd/MM/yyyy HH:mm')} - ${format(fechasActivas.endDate, 'dd/MM/yyyy HH:mm')}`,
+      105, 25, null, null, 'center'
+    );
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
+    // Estadísticas
+    pdf.setFontSize(14);
+    pdf.text(`Ganancias Netas: $${ganancias.toLocaleString()}`, 20, 40);
+    pdf.text(`Ingresos Totales: $${ingresos.toLocaleString()}`, 20, 50);
+    pdf.text(`Gastos Totales: $${gastos.toLocaleString()}`, 20, 60);
+
+    // Tabla de transacciones
+    pdf.setFontSize(16);
+    pdf.text('Transacciones', 20, 75);
+
+    // Encabezados de la tabla
+    pdf.setFontSize(12);
+    const headers = ['Descripción', 'Fecha', 'Tipo', 'Monto'];
+    const colWidths = [80, 40, 30, 30];
+    const colPositions = [20, 100, 140, 170];
+
+    // Dibujar encabezados
+    headers.forEach((header, i) => {
+      pdf.text(header, colPositions[i], 85);
+    });
+
+    // Dibujar línea bajo encabezados
+    pdf.line(20, 87, 190, 87);
+
+    // Filas de datos
+    let yPos = 95;
+    transacciones.forEach(trans => {
+      if (yPos > 280) {
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        yPos = 20;
+        // Volver a dibujar encabezados en nueva página
+        headers.forEach((header, i) => {
+          pdf.text(header, colPositions[i], yPos);
+        });
+        pdf.line(20, yPos + 2, 190, yPos + 2);
+        yPos += 15;
       }
 
-      pdf.save(`reporte-ganancias-${moment().format('YYYYMMDD')}.pdf`);
+      // Descripción
+      const descLines = pdf.splitTextToSize(trans.descripcion, colWidths[0]);
+      pdf.text(descLines, colPositions[0], yPos);
+
+      // Fecha
+      pdf.text(moment(trans.fecha).format('DD/MM HH:mm'), colPositions[1], yPos);
+
+      // Tipo
+      pdf.text(trans.tipo, colPositions[2], yPos);
+
+      // Monto
+      const montoText = trans.tipo === 'INGRESO' ? `+$${trans.monto.toLocaleString()}` : `-$${trans.monto.toLocaleString()}`;
+      pdf.text(montoText, colPositions[3], yPos);
+
+      // Incrementar posición Y (ajustar si la descripción es multilínea)
+      yPos += Math.max(10, descLines.length * 7);
     });
+
+    pdf.save(`reporte-ganancias-${moment().format('YYYYMMDD')}.pdf`);
   };
 
   // Generar PDF de la lista de compras
@@ -191,7 +299,7 @@ const Reporte = () => {
       render: (text, record) => (
         <div>
           <div><strong>{text}</strong></div>
-          <div style={{ fontSize: 12, color: '#666' }}>
+          <div className="fecha-transaccion">
             {moment(record.fecha).format('DD/MM/YYYY HH:mm')}
           </div>
         </div>
@@ -212,17 +320,24 @@ const Reporte = () => {
       dataIndex: 'monto',
       key: 'monto',
       render: (monto, record) => (
-        <div style={{ fontWeight: 600 }}>
+        <div className="monto-transaccion">
           {record.tipo === 'INGRESO' ? '+' : '-'}${monto.toLocaleString()}
         </div>
       )
     },
   ];
 
-  // Inicializar datos al cargar
+  // Inicializar con fecha actual al montar
   useEffect(() => {
-    obtenerDatos();
-  }, [fechas]);
+    restablecerFechas();
+  }, []);
+
+  // Obtener datos automáticamente al cambiar fechas activas
+  useEffect(() => {
+    if (fechasActivas.startDate && fechasActivas.endDate) {
+      obtenerDatos();
+    }
+  }, [fechasActivas]);
 
   return (
     <div className="reporte-container">
@@ -235,6 +350,7 @@ const Reporte = () => {
             type="primary"
             icon={<DownloadOutlined />}
             onClick={activeTab === 'ganancias' ? generarPDFReporteGanancias : generarPDFListaCompras}
+            className="download-pdf-btn"
           >
             Descargar PDF
           </Button>
@@ -253,20 +369,35 @@ const Reporte = () => {
             {error && <Alert message={error} type="error" showIcon className="error-alert" />}
 
             <div className="filtros-container">
-              <RangePicker
-                showTime={{
-                  format: 'HH:mm',
-                  defaultValue: [moment().startOf('day'), moment().endOf('day')]
-                }}
-                format="YYYY-MM-DD HH:mm"
-                value={fechas}
-                onChange={cambiarFechas}
-                disabledDate={disabledDate}
-                allowClear={false}
+              <DatePicker
+                selectsRange
+                startDate={fechasTemporales[0]}
+                endDate={fechasTemporales[1]}
+                onChange={handleDateChange}
+                minDate={subYears(new Date(), 1)}
+                maxDate={addYears(new Date(), 1)}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                dateFormat="dd/MM/yyyy HH:mm"
+                className="custom-datepicker"
+                popperPlacement="bottom-start"
+                placeholderText="Seleccione un rango de fechas"
+                isClearable
               />
-              <Tag color="blue" className="date-range-tag">
-                {fechas[0].format('DD/MM/YYYY HH:mm')} - {fechas[1].format('DD/MM/YYYY HH:mm')}
-              </Tag>
+              <Button
+                type="default"
+                onClick={restablecerFechas}
+                className="reset-button"
+              >
+                Hoy
+              </Button>
+              {fechasActivas.startDate && fechasActivas.endDate && (
+                <Tag color="blue" className="date-range-tag">
+                  {format(fechasActivas.startDate, 'dd/MM/yyyy HH:mm')} -{' '}
+                  {format(fechasActivas.endDate, 'dd/MM/yyyy HH:mm')}
+                </Tag>
+              )}
             </div>
 
             {loading ? (
@@ -352,37 +483,34 @@ const Reporte = () => {
                 <p>Cargando ingredientes...</p>
               </div>
             ) : (
-              <Row gutter={24}>
-                <Col xs={24} md={12}>
+              <div className="compras-grid">
+                <div className="ingredientes-container">
                   <h3 className="section-title">Ingredientes con Stock Bajo</h3>
-                  {ingredientesBajos.length > 0 ? (
+                  {ingredientesBajosAMostrar.length > 0 ? (
                     <List
-                      dataSource={ingredientesBajos}
+                      dataSource={ingredientesBajosAMostrar}
                       renderItem={item => (
                         <List.Item className="ingrediente-item">
                           <div className="ingrediente-info">
                             <div className="ingrediente-header">
-                              <span className="ingrediente-nombre">{item.nombre}</span>
-                              <Button
-                                type="primary"
-                                size="small"
-                                icon={<PlusOutlined />}
-                                onClick={() => agregarIngredienteALista(item)}
-                              >
-                                Agregar
-                              </Button>
-                            </div>
-                            <div className="stock-info">
-                              <Progress
-                                percent={Math.min(100, Math.round((item.cantidadActual / item.cantidadMinima) * 100))}
-                                status={item.cantidadActual < item.cantidadMinima ? 'exception' : 'normal'}
-                                showInfo={false}
-                                strokeColor={item.cantidadActual < item.cantidadMinima ? '#ff4d4f' : '#52c41a'}
-                              />
-                              <div className="stock-details">
-                                <span>Stock: {item.cantidadActual} {item.unidadMedida?.simbolo || ''}</span>
-                                <span>Mínimo: {item.cantidadMinima} {item.unidadMedida?.simbolo || ''}</span>
+                              <div>
+                                <div className="ingrediente-nombre">{item.nombre}</div>
+                                <div className="stock-info">
+                                  <span className="stock-label">Stock Actual:</span>
+                                  <span className="stock-value">{item.cantidadActual} {item.unidadMedida?.simbolo || ''}</span>
+                                  <span className="stock-label">Mínimo:</span>
+                                  <span className="stock-value">{item.cantidadMinima} {item.unidadMedida?.simbolo || ''}</span>
+                                </div>
                               </div>
+                              <Tooltip title="Agregar a lista de compras">
+                                <Button
+                                  type="primary"
+                                  shape="circle"
+                                  icon={<PlusOutlined />}
+                                  onClick={() => agregarIngredienteALista(item)}
+                                  className="add-ingredient-btn"
+                                />
+                              </Tooltip>
                             </div>
                           </div>
                         </List.Item>
@@ -394,267 +522,92 @@ const Reporte = () => {
                       message="No hay ingredientes con stock bajo"
                       type="success"
                       showIcon
+                      className="empty-alert"
                     />
                   )}
-                </Col>
+                </div>
 
-                <Col xs={24} md={12}>
-                  <div className="lista-compras-container">
-                    <div className="lista-header">
-                      <h3 className="section-title">Mi Lista de Compras</h3>
-                      <Tag color="blue">
-                        Total: {listaCompras.length} ítems
-                      </Tag>
-                    </div>
-
-                    {listaCompras.length > 0 ? (
-                      <List
-                        dataSource={listaCompras}
-                        renderItem={item => (
-                          <List.Item
-                            className={`compra-item ${item.completado ? 'completed' : ''}`}
-                            actions={[
-                              <Tooltip title={item.completado ? "Marcar como pendiente" : "Marcar como completado"}>
-                                <Button
-                                  type="text"
-                                  icon={<CheckOutlined />}
-                                  onClick={() => toggleCompletado(item.id)}
-                                  style={{ color: item.completado ? '#52c41a' : '#d9d9d9' }}
-                                />
-                              </Tooltip>,
-                              <Tooltip title="Eliminar">
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => eliminarItem(item.id)}
-                                />
-                              </Tooltip>
-                            ]}
-                          >
-                            <List.Item.Meta
-                              title={<span className={item.completado ? 'completed-text' : ''}>{item.nombre}</span>}
-                              description={item.cantidad && <span>Cantidad: {item.cantidad}</span>}
-                            />
-                          </List.Item>
-                        )}
-                        className="compras-list"
-                      />
-                    ) : (
-                      <Alert
-                        message="Tu lista de compras está vacía"
-                        description="Agrega ingredientes desde el panel izquierdo o añade nuevos ítems manualmente"
-                        type="info"
-                        showIcon
-                      />
-                    )}
-
-                    <div className="add-item-container">
-                      <Input
-                        placeholder="Agregar ítem a la lista (ej: Servilletas, Bolsas, etc.)"
-                        value={nuevoItem}
-                        onChange={(e) => setNuevoItem(e.target.value)}
-                        onPressEnter={agregarItem}
-                        className="add-item-input"
-                      />
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={agregarItem}
-                        className="add-item-button"
-                        disabled={!nuevoItem.trim()}
-                      />
-                    </div>
+                <div className="lista-compras-container">
+                  <div className="lista-header">
+                    <h3 className="section-title">Mi Lista de Compras</h3>
+                    <Tag color="blue" className="total-tag">
+                      Total: {listaCompras.length} ítem{listaCompras.length !== 1 ? 's' : ''}
+                    </Tag>
                   </div>
-                </Col>
-              </Row>
+
+                  {listaCompras.length > 0 ? (
+                    <List
+                      dataSource={listaCompras}
+                      renderItem={item => (
+                        <List.Item
+                          className={`compra-item ${item.completado ? 'completed' : ''}`}
+                          actions={[
+                            <Tooltip title={item.completado ? "Marcar como pendiente" : "Marcar como completado"}>
+                              <Button
+                                type="text"
+                                icon={<CheckOutlined />}
+                                onClick={() => toggleCompletado(item.id)}
+                                className={`complete-btn ${item.completado ? 'completed' : ''}`}
+                              />
+                            </Tooltip>,
+                            <Tooltip title="Eliminar">
+                              <Button
+                                type="text"
+                                icon={<DeleteOutlined />}
+                                onClick={() => eliminarItem(item.id)}
+                                className="delete-btn"
+                              />
+                            </Tooltip>
+                          ]}
+                        >
+                          <List.Item.Meta
+                            title={
+                              <div className="item-title-container">
+                                <span className={item.completado ? 'completed-text' : ''}>{item.nombre}</span>
+                                {item.cantidad && (
+                                  <Tag color="geekblue" className="quantity-tag">
+                                    {item.cantidad}
+                                  </Tag>
+                                )}
+                              </div>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                      className="compras-list"
+                    />
+                  ) : (
+                    <Alert
+                      message="Tu lista de compras está vacía"
+                      description="Agrega ingredientes desde el panel izquierdo o añade nuevos ítem manualmente"
+                      type="info"
+                      showIcon
+                      className="empty-alert"
+                    />
+                  )}
+
+                  <div className="add-item-container">
+                    <Input
+                      placeholder="Agregar ítem a la lista (ej: Servilletas, Bolsas, etc.)"
+                      value={nuevoItem}
+                      onChange={(e) => setNuevoItem(e.target.value)}
+                      onPressEnter={agregarItem}
+                      className="add-item-input"
+                    />
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={agregarItem}
+                      className="add-item-button"
+                      disabled={!nuevoItem.trim()}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
           </Card>
         </TabPane>
       </Tabs>
-
-      <style jsx global>{`
-        .reporte-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 20px;
-          background: #f5f7fa;
-          min-height: 100vh;
-        }
-        
-        .custom-tabs .ant-tabs-nav {
-          margin-bottom: 20px;
-          background: #fff;
-          padding: 0 20px;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-        
-        .tab-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 500;
-          font-size: 16px;
-        }
-        
-        .card-reporte, .card-compras {
-          border-radius: 10px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-          background: #fff;
-          overflow: hidden;
-        }
-        
-        .error-alert {
-          margin-bottom: 20px;
-        }
-        
-        .filtros-container {
-          display: flex;
-          align-items: center;
-          gap: 15px;
-          margin-bottom: 25px;
-          flex-wrap: wrap;
-        }
-        
-        .date-range-tag {
-          font-size: 14px;
-          padding: 5px 10px;
-        }
-        
-        .stats-row {
-          margin-bottom: 25px;
-        }
-        
-        .stat-card {
-          border-radius: 8px;
-          text-align: center;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-          border: none;
-        }
-        
-        .stat-card .ant-statistic-title {
-          font-size: 16px;
-          color: #595959;
-          font-weight: 500;
-        }
-        
-        .stat-card .ant-statistic-content {
-          font-size: 28px;
-          font-weight: 600;
-        }
-        
-        .stat-comparison {
-          margin-top: 8px;
-          font-size: 14px;
-          color: #8c8c8c;
-        }
-        
-        .transactions-card {
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-          border: none;
-        }
-        
-        .section-title {
-          color: #1890ff;
-          margin-bottom: 15px;
-          font-weight: 500;
-          font-size: 18px;
-        }
-        
-        .ingredientes-list .ingrediente-item {
-          border: none;
-          padding: 12px 0;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .ingrediente-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-        
-        .ingrediente-nombre {
-          font-weight: 500;
-          font-size: 16px;
-        }
-        
-        .stock-info {
-          width: 100%;
-        }
-        
-        .stock-details {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 8px;
-          font-size: 14px;
-          color: #595959;
-        }
-        
-        .lista-compras-container {
-          padding: 16px;
-          border-radius: 8px;
-          background: #fff;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-          height: 100%;
-        }
-        
-        .lista-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-        }
-        
-        .compras-list .compra-item {
-          padding: 12px;
-          border-radius: 6px;
-          margin-bottom: 8px;
-          background: #f9f9f9;
-          border: 1px solid #f0f0f0;
-        }
-        
-        .compra-item.completed {
-          background: #f6ffed;
-          border-color: #b7eb8f;
-        }
-        
-        .completed-text {
-          text-decoration: line-through;
-          color: #8c8c8c;
-        }
-        
-        .add-item-container {
-          display: flex;
-          gap: 10px;
-          margin-top: 20px;
-        }
-        
-        .add-item-input {
-          flex: 1;
-        }
-        
-        .add-item-button {
-          min-width: 40px;
-        }
-        
-        .loading-container {
-          text-align: center;
-          padding: 40px 0;
-        }
-        
-        @media (max-width: 768px) {
-          .stats-row .ant-col {
-            margin-bottom: 16px;
-          }
-          
-          .filtros-container {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-        }
-      `}</style>
     </div>
   );
 };

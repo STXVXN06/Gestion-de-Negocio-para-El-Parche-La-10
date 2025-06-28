@@ -1,0 +1,39 @@
+/* src/components/EditarCombo.css */
+.sticky-top {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 20px;
+}
+
+.ant-table-small .ant-table-thead>tr>th {
+    background-color: #f0f2f5;
+}
+
+.list-group-item {
+    padding: 0.75rem 1.25rem;
+}
+
+.text-success {
+    color: #28a745;
+}
+
+.text-danger {
+    color: #dc3545;
+}
+
+.ant-form-item {
+    margin-bottom: 16px;
+}
+
+.alert-info {
+    background-color: #e6f7ff;
+    border-color: #91d5ff;
+    color: #004085;
+}
+
+.combo-status-tag {
+    font-size: 14px;
+    padding: 4px 8px;
+    margin-top: 8px;
+    display: inline-block;
+}

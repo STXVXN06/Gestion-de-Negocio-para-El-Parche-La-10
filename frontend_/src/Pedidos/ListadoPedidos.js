@@ -13,6 +13,8 @@ import {
   Tag,
   Modal,
   Tabs,
+  Input,
+  notification
 } from 'antd';
 import {
   FilterOutlined,
@@ -27,7 +29,8 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   DownOutlined,
-  UpOutlined
+  UpOutlined,
+  MailOutlined
 } from '@ant-design/icons';
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -50,9 +53,13 @@ export default function ListadoPedidos() {
     cancelados: 0,
   });
   const [modalVisible, setModalVisible] = useState(false);
+  const [modalFacturaVisible, setModalFacturaVisible] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [activeTab, setActiveTab] = useState('todos');
   const [expandedPedidoId, setExpandedPedidoId] = useState(null);
+  const [emailCliente, setEmailCliente] = useState('');
+  const [enviandoFactura, setEnviandoFactura] = useState(false);
+  const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState(null);
 
   useEffect(() => {
     cargarPedidos();
@@ -66,6 +73,10 @@ export default function ListadoPedidos() {
       calcularEstadisticas(resultado.data);
     } catch (error) {
       console.error("Error cargando pedidos:", error);
+      notification.error({
+        message: 'Error',
+        description: 'No se pudieron cargar los pedidos. Intente nuevamente.',
+      });
     } finally {
       setCargando(false);
     }
@@ -110,8 +121,22 @@ export default function ListadoPedidos() {
           ? { ...pedido, estado: nuevoEstado, metodoPago }
           : pedido
       ));
+      
+      if (nuevoEstado === 'ENTREGADO') {
+        setMetodoPagoSeleccionado(metodoPago);
+        setModalFacturaVisible(true);
+      } else {
+        notification.success({
+          message: 'Estado actualizado',
+          description: `El pedido ha sido ${nuevoEstado.toLowerCase()} correctamente.`,
+        });
+      }
     } catch (error) {
       console.error("Error actualizando estado:", error);
+      notification.error({
+        message: 'Error',
+        description: 'No se pudo actualizar el estado del pedido.',
+      });
     } finally {
       setModalVisible(false);
     }
@@ -120,6 +145,37 @@ export default function ListadoPedidos() {
   const abrirModalEntrega = (pedido) => {
     setPedidoSeleccionado(pedido);
     setModalVisible(true);
+  };
+
+  const enviarFactura = async () => {
+    if (!emailCliente) {
+      notification.error({
+        message: 'Error',
+        description: 'Por favor ingrese un correo electrónico',
+      });
+      return;
+    }
+
+    try {
+      setEnviandoFactura(true);
+      await axios.post(`${urlBase}/${pedidoSeleccionado.id}/enviarFactura?email=${emailCliente}`);
+      
+      notification.success({
+        message: 'Factura enviada',
+        description: 'La factura ha sido enviada con éxito al correo proporcionado.',
+      });
+      
+      setModalFacturaVisible(false);
+      setEmailCliente('');
+    } catch (error) {
+      console.error("Error enviando factura:", error);
+      notification.error({
+        message: 'Error',
+        description: 'No se pudo enviar la factura. Por favor, intente nuevamente.',
+      });
+    } finally {
+      setEnviandoFactura(false);
+    }
   };
 
   const getCardColor = (estado) => {
@@ -278,7 +334,6 @@ export default function ListadoPedidos() {
     )
   );
 
-
   const renderFiltros = () => (
     <Card className="filter-card">
       <div className="filter-container">
@@ -334,7 +389,6 @@ export default function ListadoPedidos() {
     const { bg, border, icon, color } = getCardColor(pedido.estado);
     const fechaFormateada = format(parseISO(pedido.fecha), 'dd MMM yyyy - h:mm a', { locale: es });
     const isExpanded = expandedPedidoId === pedido.id;
-    const esPestanaTodos = activeTab === 'todos';
 
     return (
       <Col
@@ -480,6 +534,20 @@ export default function ListadoPedidos() {
                   </Button>
                 </>
               )}
+
+              {pedido.estado === 'ENTREGADO' && (
+                <Button
+                  type="default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPedidoSeleccionado(pedido);
+                    setModalFacturaVisible(true);
+                  }}
+                  className="action-btn"
+                >
+                  Enviar Factura
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -623,6 +691,70 @@ export default function ListadoPedidos() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal para enviar factura */}
+      <Modal
+        title={`Enviar factura del pedido #${pedidoSeleccionado?.id}`}
+        open={modalFacturaVisible}
+        onCancel={() => {
+          setModalFacturaVisible(false);
+          setEmailCliente('');
+        }}
+        footer={[
+          <Button 
+            key="cancelar" 
+            onClick={() => {
+              setModalFacturaVisible(false);
+              setEmailCliente('');
+            }}
+          >
+            Cancelar
+          </Button>,
+          <Button 
+            key="enviar" 
+            type="primary" 
+            onClick={enviarFactura}
+            loading={enviandoFactura}
+          >
+            Enviar Factura
+          </Button>
+        ]}
+        centered
+        className="factura-modal"
+      >
+        <div className="modal-content">
+          <div className="modal-header">
+            <h4>Pedido #{pedidoSeleccionado?.id}</h4>
+            <div className="modal-total">
+              Total: 
+              <NumericFormat
+                value={pedidoSeleccionado?.total}
+                displayType="text"
+                thousandSeparator=","
+                prefix="$"
+              />
+            </div>
+          </div>
+
+          <p className="modal-text">Ingrese el correo electrónico del cliente:</p>
+          
+          <Input
+            type="email"
+            value={emailCliente}
+            onChange={(e) => setEmailCliente(e.target.value)}
+            placeholder="correo@ejemplo.com"
+            className="email-input"
+          />
+          
+          {metodoPagoSeleccionado && (
+            <p className="modal-info">
+              Método de pago: <Tag color={metodoPagoSeleccionado === 'EFECTIVO' ? 'green' : 'blue'}>
+                {metodoPagoSeleccionado}
+              </Tag>
+            </p>
+          )}
+        </div>
       </Modal>
     </div>
   );

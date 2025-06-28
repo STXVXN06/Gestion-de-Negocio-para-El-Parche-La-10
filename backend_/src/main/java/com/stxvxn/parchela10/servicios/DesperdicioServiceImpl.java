@@ -29,11 +29,6 @@ public class DesperdicioServiceImpl implements IDesperdicioService{
     @Autowired
     private IngredienteRepository ingredienteRepository;
 
-    @Autowired
-    private IMovimientoCajaService movimientoCajaService;
-
-    @Autowired
-    private ICajaService cajaService;
 
     @Autowired
     private IProductoIngredienteService productoIngredienteService;

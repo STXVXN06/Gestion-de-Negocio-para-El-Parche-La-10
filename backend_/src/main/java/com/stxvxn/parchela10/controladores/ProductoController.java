@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.DTO.ProductoConIngredienteDTO;
 import com.stxvxn.parchela10.DTO.ProductoConIngredientesResponse;
-import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
 import com.stxvxn.parchela10.servicios.ProductoIngredienteServiceImpl;

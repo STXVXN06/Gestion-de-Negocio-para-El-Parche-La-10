@@ -29,6 +29,7 @@ import com.stxvxn.parchela10.DTO.AdicionResponseDTO;
 import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
 import com.stxvxn.parchela10.DTO.PedidoComboDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO;
+import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ComboEnPedido;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ProductoEnPedido;
 import com.stxvxn.parchela10.DTO.PedidoRequestDTO;
 import com.stxvxn.parchela10.entidades.AdicionPedido;
@@ -43,6 +44,7 @@ import com.stxvxn.parchela10.entidades.ProductoIngrediente;
 import com.stxvxn.parchela10.repositorios.AdicionPedidoRepository;
 import com.stxvxn.parchela10.repositorios.PedidoComboRepository;
 import com.stxvxn.parchela10.servicios.ComboServiceImpl;
+import com.stxvxn.parchela10.servicios.EmailServiceImpl;
 import com.stxvxn.parchela10.servicios.IngredienteServiceImpl;
 import com.stxvxn.parchela10.servicios.PedidoProductoServiceImpl;
 import com.stxvxn.parchela10.servicios.PedidoServiceImpl;
@@ -77,6 +79,9 @@ public class PedidoController {
 
     @Autowired
     private AdicionPedidoRepository adicionPedidoRepository;
+
+    @Autowired
+    private EmailServiceImpl emailService;
 
     @PostMapping
     public ResponseEntity<?> crearPedido(@RequestBody PedidoRequestDTO pedidoDTO) {
@@ -137,7 +142,7 @@ public class PedidoController {
             pedidoCombos.add(pedidoCombo);
 
             // Calcular precio del combo
-            Long precioCombo = comboService.calcularPrecioCombo(combo.getId());
+            Long precioCombo = combo.getPrecio();
             total += precioCombo * comboItem.getCantidad();
 
             // Acumular ingredientes del combo
@@ -317,7 +322,7 @@ public class PedidoController {
             PedidoConProductosDTO.ComboEnPedido c = new PedidoConProductosDTO.ComboEnPedido();
             c.setId(combo.getId());
             c.setNombre(combo.getNombre());
-            c.setPrecio(comboService.calcularPrecioCombo(combo.getId()));
+            c.setPrecio(combo.getPrecio());
             c.setCantidad(pc.getCantidad());
 
             // Productos dentro del combo
@@ -546,7 +551,7 @@ public class PedidoController {
                     }
                 }
 
-                nuevoTotal += comboService.calcularPrecioCombo(combo.getId()) * comboItem.getCantidad();
+                nuevoTotal += combo.getPrecio() * comboItem.getCantidad();
             }
 
             // 3.2 Procesar desechables
@@ -775,4 +780,159 @@ public class PedidoController {
         }
     }
 
+    @PostMapping("/{id}/enviarFactura")
+    public ResponseEntity<?> enviarFactura(
+            @PathVariable Long id,
+            @RequestParam String email) {
+
+        Optional<Pedido> pedidoOptional = pedidoService.buscarPedidoPorId(id);
+        if (!pedidoOptional.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Pedido pedido = pedidoOptional.get();
+        PedidoConProductosDTO pedidoDTO = convertirAPedidoDTO(pedido);
+        String factura = generarFactura(pedidoDTO);
+
+        try {
+            emailService.enviarFactura(email, "Factura Parchela10 - Pedido #" + id, factura);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error enviando factura: " + e.getMessage());
+        }
+    }
+
+    private PedidoConProductosDTO convertirAPedidoDTO(Pedido pedido) {
+        PedidoConProductosDTO dto = new PedidoConProductosDTO();
+        dto.setId(pedido.getId());
+        dto.setFecha(pedido.getFecha());
+        dto.setEstado(pedido.getEstado());
+        dto.setTotal(pedido.getTotal());
+        dto.setDetalles(pedido.getDetalles());
+        dto.setCantidadP1(pedido.getCantidadP1());
+        dto.setCantidadC1(pedido.getCantidadC1());
+        dto.setDomicilio(pedido.isDomicilio());
+        dto.setCostoDomicilio(pedido.getCostoDomicilio());
+        dto.setMetodoPago(pedido.getMetodoPago());
+
+        // Productos individuales
+        List<PedidoProducto> productos = pedidoProductoService
+                .obtenerPedidoProductosPorPedidoId(pedido.getId());
+        dto.setProductos(mapearProductos(productos));
+
+        // Combos
+        List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(pedido.getId());
+        dto.setCombos(mapearCombos(combos));
+
+        // Adiciones
+        List<AdicionPedido> adiciones = adicionPedidoRepository
+                .findByPedidoIdWithIngrediente(pedido.getId());
+        dto.setAdiciones(mapearAdiciones(adiciones));
+
+        return dto;
+    }
+
+    private String generarFactura(PedidoConProductosDTO pedido) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><head><style>");
+        sb.append("body { font-family: Arial, sans-serif; margin: 20px; }");
+        sb.append(".header { text-align: center; margin-bottom: 20px; }");
+        sb.append(".details { margin-bottom: 20px; }");
+        sb.append(".table { width: 100%; border-collapse: collapse; }");
+        sb.append(".table th, .table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }");
+        sb.append(".table th { background-color: #f2f2f2; }");
+        sb.append(".total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }");
+        sb.append(".footer { margin-top: 40px; text-align: center; color: #7f8c8d; font-size: 14px; }");
+        sb.append("</style></head><body>");
+
+        sb.append("<div class='header'>");
+        sb.append("<h1>FACTURA PARCHELA10</h1>");
+        sb.append("<p>Calle 10 #10-10, Bogotá | Tel: 123-456-7890</p>");
+        sb.append("</div>");
+
+        sb.append("<div class='details'>");
+        sb.append("<p><strong>Pedido #:</strong> ").append(pedido.getId()).append("</p>");
+        sb.append("<p><strong>Fecha:</strong> ").append(pedido.getFecha()).append("</p>");
+        sb.append("<p><strong>Estado:</strong> ").append(pedido.getEstado()).append("</p>");
+        sb.append("<p><strong>Tipo:</strong> ").append(pedido.isDomicilio() ? "Domicilio" : "Local").append("</p>");
+        sb.append("</div>");
+
+        sb.append("<table class='table'>");
+        sb.append("<thead><tr>");
+        sb.append("<th>Descripción</th>");
+        sb.append("<th>Cantidad</th>");
+        sb.append("<th>Precio Unitario</th>");
+        sb.append("<th>Total</th>");
+        sb.append("</tr></thead><tbody>");
+
+        // Productos
+        for (ProductoEnPedido producto : pedido.getProductos()) {
+            sb.append("<tr>");
+            sb.append("<td>").append(producto.getNombre()).append("</td>");
+            sb.append("<td>").append(producto.getCantidad()).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", producto.getPrecio())).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", producto.getPrecio() * producto.getCantidad()))
+                    .append("</td>");
+            sb.append("</tr>");
+        }
+
+        // Combos
+        for (ComboEnPedido combo : pedido.getCombos()) {
+            sb.append("<tr>");
+            sb.append("<td>").append(combo.getNombre()).append("</td>");
+            sb.append("<td>").append(combo.getCantidad()).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", combo.getPrecio())).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", combo.getPrecio() * combo.getCantidad())).append("</td>");
+            sb.append("</tr>");
+        }
+
+        // Adiciones
+        for (AdicionResponseDTO adicion : pedido.getAdiciones()) {
+            sb.append("<tr>");
+            sb.append("<td>").append(adicion.getNombreIngrediente())
+                    .append(adicion.getAplicadoA() != null ? " (" + adicion.getAplicadoA() + ")" : "")
+                    .append("</td>");
+            sb.append("<td>").append(adicion.getCantidad()).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", adicion.getPrecioAdicion())).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", adicion.getSubtotal())).append("</td>");
+            sb.append("</tr>");
+        }
+
+        // Desechables
+        if (pedido.getCantidadP1() > 0 || pedido.getCantidadC1() > 0) {
+            int totalDesechables = pedido.getCantidadP1() + pedido.getCantidadC1();
+            long subtotal = totalDesechables * 500;
+
+            sb.append("<tr>");
+            sb.append("<td>Desechable (Producto para llevar)</td>");
+            sb.append("<td>").append(totalDesechables).append("</td>");
+            sb.append("<td>$500</td>");
+            sb.append("<td>$").append(String.format("%,d", subtotal)).append("</td>");
+            sb.append("</tr>");
+        }
+
+        // Domicilio
+        if (pedido.isDomicilio() && pedido.getCostoDomicilio() > 0) {
+            sb.append("<tr>");
+            sb.append("<td>Costo de domicilio</td>");
+            sb.append("<td>1</td>");
+            sb.append("<td>$").append(String.format("%,d", pedido.getCostoDomicilio())).append("</td>");
+            sb.append("<td>$").append(String.format("%,d", pedido.getCostoDomicilio())).append("</td>");
+            sb.append("</tr>");
+        }
+
+        sb.append("<tr><td colspan='3' style='text-align: right;'><strong>TOTAL:</strong></td>");
+        sb.append("<td><strong>$").append(String.format("%,d", pedido.getTotal())).append("</strong></td></tr>");
+        sb.append("</tbody></table>");
+
+        sb.append("<div class='footer'>");
+        sb.append("<p>Gracias por su preferencia!</p>");
+        sb.append("<p>Parchela10 - Todos los derechos reservados &copy; ").append(java.time.Year.now().getValue())
+                .append("</p>");
+        sb.append("</div>");
+
+        sb.append("</body></html>");
+        return sb.toString();
+    }
 }

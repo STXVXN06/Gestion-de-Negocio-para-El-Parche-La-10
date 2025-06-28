@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.stxvxn.parchela10.entidades.Caja;
 import com.stxvxn.parchela10.entidades.Compra;
 import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.repositorios.CompraRepository;

@@ -2,6 +2,7 @@ package com.stxvxn.parchela10.controladores;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -79,17 +80,15 @@ public class ComboController {
             dto.setId(combo.getId());
             dto.setNombre(combo.getNombre());
             dto.setDescripcion(combo.getDescripcion());
-            dto.setDescuento(combo.getDescuento());
             dto.setActivo(combo.getActivo());
-            dto.setPrecio(comboService.calcularPrecioCombo(combo.getId())); // Calcular precio
+            dto.setPrecio(combo.getPrecio()); // Calcular precio
 
             // Obtener productos del combo
             List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
             List<ComboConPrecioDTO.ProductoEnComboDTO> productosDTO = new ArrayList<>();
 
             for (ComboProducto cp : productosCombo) {
-                ComboConPrecioDTO.ProductoEnComboDTO prodDTO
-                        = new ComboConPrecioDTO.ProductoEnComboDTO();
+                ComboConPrecioDTO.ProductoEnComboDTO prodDTO = new ComboConPrecioDTO.ProductoEnComboDTO();
                 prodDTO.setId(cp.getProducto().getId());
                 prodDTO.setNombre(cp.getProducto().getNombre());
                 prodDTO.setPrecio(cp.getProducto().getPrecio());
@@ -105,15 +104,47 @@ public class ComboController {
         return ResponseEntity.ok(dtos);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerCombo(@PathVariable Long id) {
+        Optional<Combo> comboOpt = comboService.findById(id);
+        if (!comboOpt.isPresent()) {
+            return ResponseEntity.ok().body("No existe el combo con el id: " + id);
+        }
+        Combo combo = comboOpt.orElseThrow();
+
+        // Mapear a DTO con precio
+
+        ComboConPrecioDTO dto = new ComboConPrecioDTO();
+        dto.setId(combo.getId());
+        dto.setNombre(combo.getNombre());
+        dto.setDescripcion(combo.getDescripcion());
+        dto.setActivo(combo.getActivo());
+        dto.setPrecio(combo.getPrecio()); // Calcular precio
+
+        // Obtener productos del combo
+        List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
+        List<ComboConPrecioDTO.ProductoEnComboDTO> productosDTO = new ArrayList<>();
+
+        for (ComboProducto cp : productosCombo) {
+            ComboConPrecioDTO.ProductoEnComboDTO prodDTO = new ComboConPrecioDTO.ProductoEnComboDTO();
+            prodDTO.setId(cp.getProducto().getId());
+            prodDTO.setNombre(cp.getProducto().getNombre());
+            prodDTO.setPrecio(cp.getProducto().getPrecio());
+            prodDTO.setCantidad(cp.getCantidad());
+            productosDTO.add(prodDTO);
+        }
+
+        dto.setProductos(productosDTO);
+
+
+        return ResponseEntity.ok(dto);
+
+    }
+
     @GetMapping("/{id}/precio")
     public ResponseEntity<?> obtenerPrecioCombo(@PathVariable Long id) {
-        try {
-            Long precio = comboService.calcularPrecioCombo(id);
-            return ResponseEntity.ok(precio);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al obtener el precio del combo");
-        }
+        Combo combo = comboService.findById(id).orElseThrow();
+        return ResponseEntity.ok(combo.getPrecio());
+
     }
 }

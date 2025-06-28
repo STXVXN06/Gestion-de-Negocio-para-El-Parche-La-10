@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.entidades.Compra;
 import com.stxvxn.parchela10.servicios.CompraServiceImpl;
-import com.stxvxn.parchela10.servicios.ICompraService;
 
 
 @RestController

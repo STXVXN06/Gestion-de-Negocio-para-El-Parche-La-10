@@ -42,7 +42,7 @@ public class ComboServiceImpl implements IComboService {
         Combo combo = new Combo();
         combo.setNombre(dto.getNombre());
         combo.setDescripcion(dto.getDescripcion());
-        combo.setDescuento(dto.getDescuento());
+        combo.setPrecio(dto.getPrecio());
         combo.setActivo(true);
 
         Combo comboGuardado = comboRepository.save(combo);
@@ -84,7 +84,7 @@ public class ComboServiceImpl implements IComboService {
 
         combo.setNombre(dto.getNombre());
         combo.setDescripcion(dto.getDescripcion());
-        combo.setDescuento(dto.getDescuento());
+        combo.setPrecio(dto.getPrecio());
 
         // Eliminar relaciones anteriores
         comboProductoRepository.deleteByComboId(combo.getId());
@@ -130,33 +130,6 @@ public class ComboServiceImpl implements IComboService {
     @Override
     public Optional<Combo> findById(Long id) {
         return comboRepository.findById(id);
-    }
-
-    @Transactional(readOnly = true)
-    @Override
-    public Long calcularPrecioCombo(Long comboId) {
-
-        Optional<Combo> comboOptional = comboRepository.findById(comboId);
-
-        if (comboOptional.isEmpty()) {
-            throw new RuntimeException("Combo no encontrado con ID: " + comboId);
-        }
-
-        List<ComboProducto> productosCombo = comboProductoRepository.findByComboId(comboId);
-
-        long precioBase = 0;
-
-        for (ComboProducto cp : productosCombo) {
-            if (cp.getProducto() != null && cp.getCantidad() != null) {
-                precioBase += cp.getProducto().getPrecio() * cp.getCantidad();
-            }
-        }
-
-        Combo combo = comboOptional.orElseThrow();
-
-        long descuentoAplicado = (long) (precioBase * combo.getDescuento());
-
-        return precioBase - descuentoAplicado;
     }
 
     @Override

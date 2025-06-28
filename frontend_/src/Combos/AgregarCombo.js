@@ -19,25 +19,12 @@ export default function AgregarCombo() {
     const [guardando, setGuardando] = useState(false);
     const navigate = useNavigate();
 
-    // Observar cambios en el campo de descuento
-    const descuento = Form.useWatch('descuento', form) || 0;
-
-    // Calcular valores en tiempo real usando useMemo
-    const { subtotal, descuentoValor, total } = useMemo(() => {
-        const subtotalCalculado = productosSeleccionados.reduce(
-            (sum, item) => sum + item.precio * item.cantidad,
-            0
-        );
-
-        const descuentoValorCalculado = subtotalCalculado * descuento;
-        const totalCalculado = subtotalCalculado - descuentoValorCalculado;
-
-        return {
-            subtotal: subtotalCalculado,
-            descuentoValor: descuentoValorCalculado,
-            total: totalCalculado
-        };
-    }, [productosSeleccionados, descuento]);
+    // Calcular subtotal de productos
+    const subtotalProductos = useMemo(() => {
+        return productosSeleccionados.reduce((total, producto) => {
+            return total + (producto.precio * producto.cantidad);
+        }, 0);
+    }, [productosSeleccionados]);
 
     useEffect(() => {
         const fetchProductos = async () => {
@@ -114,7 +101,7 @@ export default function AgregarCombo() {
         const comboData = {
             nombre: values.nombre,
             descripcion: values.descripcion || '',
-            descuento: values.descuento,
+            precio: values.precio,
             activo: true,
             productos: productosSeleccionados.map(p => ({
                 productoId: p.id,
@@ -214,7 +201,6 @@ export default function AgregarCombo() {
                             form={form}
                             layout="vertical"
                             onFinish={guardarCombo}
-                            initialValues={{ descuento: 0.1 }}
                         >
                             <Form.Item
                                 label="Nombre del Combo"
@@ -238,26 +224,23 @@ export default function AgregarCombo() {
                             </Form.Item>
 
                             <Form.Item
-                                label="Descuento (%)"
-                                name="descuento"
+                                label="Precio del Combo"
+                                name="precio"
                                 rules={[
-                                    { required: true, message: 'Por favor ingrese el descuento' },
-                                    { type: 'number', min: 0, max: 1, message: 'El descuento debe estar entre 0 y 1 (ej: 0.15 para 15%)' }
+                                    { required: true, message: 'Por favor ingrese el precio del combo' },
+                                    { type: 'number', min: 1, message: 'El precio debe ser mayor a 0' }
                                 ]}
                             >
                                 <InputNumber
-                                    min={0}
-                                    max={1}
-                                    step={0.05}
+                                    min={1}
                                     style={{ width: '100%' }}
-                                    formatter={value => `${(value * 100).toFixed(0)}%`}
-                                    parser={value => parseFloat(value.replace('%', '')) / 100}
+                                    formatter={value => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={value => value.replace(/\$\s?|(,*)/g, '')}
                                 />
                             </Form.Item>
 
                             <Divider orientation="left">Productos del Combo</Divider>
 
-                            {/* Mostrar producto seleccionado */}
                             {productoActual && (
                                 <div className="alert alert-info mb-3">
                                     <strong>Producto seleccionado:</strong> {productoActual.nombre}
@@ -277,9 +260,13 @@ export default function AgregarCombo() {
                                             optionFilterProp="children"
                                             value={productoActual?.id}
                                             onChange={value => setProductoActual(productos.find(p => p.id === value))}
-                                            filterOption={(input, option) =>
-                                                option.children.toLowerCase().includes(input.toLowerCase())
-                                            }
+                                            filterOption={(input, option) => {
+                                                const optionText = Array.isArray(option.children)
+                                                    ? option.children.join('')
+                                                    : option.children.toString();
+
+                                                return optionText.toLowerCase().includes(input.toLowerCase());
+                                            }}
                                             className="w-100"
                                         >
                                             {productos.map(producto => (
@@ -327,6 +314,17 @@ export default function AgregarCombo() {
                                     locale={{
                                         emptyText: 'No hay productos en el combo'
                                     }}
+                                    summary={() => (
+                                        <Table.Summary.Row>
+                                            <Table.Summary.Cell index={0} colSpan={3} align="right">
+                                                <strong>Total Productos:</strong>
+                                            </Table.Summary.Cell>
+                                            <Table.Summary.Cell index={1} align="right">
+                                                <strong>${subtotalProductos.toLocaleString()}</strong>
+                                            </Table.Summary.Cell>
+                                            <Table.Summary.Cell index={2} />
+                                        </Table.Summary.Row>
+                                    )}
                                 />
                             </div>
 
@@ -378,27 +376,61 @@ export default function AgregarCombo() {
                                 </ul>
                             </div>
 
-                            <div className="d-flex justify-content-between mb-2">
-                                <span>Subtotal:</span>
-                                <span>${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
+                            {/* Sección de resumen financiero */}
+                            <div className="resumen-financiero mt-4">
+                                <div className="d-flex justify-content-between mb-2">
+                                    <span>Subtotal productos:</span>
+                                    <span>
+                                        ${subtotalProductos.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        })}
+                                    </span>
+                                </div>
 
-                            <div className="d-flex justify-content-between mb-2">
-                                <span>
-                                    Descuento ({(descuento * 100).toFixed(0)}%):
-                                </span>
-                                <span className="text-danger">
-                                    -${descuentoValor.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
+                                <div className="d-flex justify-content-between mb-2">
+                                    <span>Precio del combo:</span>
+                                    <span className="text-success">
+                                        ${form.getFieldValue('precio')?.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        }) || '0.00'}
+                                    </span>
+                                </div>
 
-                            <Divider />
+                                <Divider className="my-2" />
 
-                            <div className="d-flex justify-content-between fw-bold fs-5">
-                                <span>Total:</span>
-                                <span className="text-success">
-                                    ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
+                                <div className="d-flex justify-content-between fw-bold">
+                                    <span>Diferencia:</span>
+                                    <span className={
+                                        (form.getFieldValue('precio') || 0) > subtotalProductos
+                                            ? 'text-success'
+                                            : 'text-danger'
+                                    }>
+                                        ${((form.getFieldValue('precio') || 0) - subtotalProductos).toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        })}
+                                    </span>
+                                </div>
+
+                                <div className="mt-2 text-center">
+                                    {subtotalProductos > 0 && form.getFieldValue('precio') && (
+                                        <Tag color={
+                                            form.getFieldValue('precio') > subtotalProductos
+                                                ? 'green'
+                                                : form.getFieldValue('precio') < subtotalProductos
+                                                    ? 'orange'
+                                                    : 'blue'
+                                        }>
+                                            {form.getFieldValue('precio') > subtotalProductos
+                                                ? 'Ganancia'
+                                                : form.getFieldValue('precio') < subtotalProductos
+                                                    ? 'Pérdida'
+                                                    : 'Sin margen'}
+                                        </Tag>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="mt-4 text-center">
