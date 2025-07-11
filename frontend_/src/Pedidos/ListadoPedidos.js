@@ -524,7 +524,7 @@ export default function ListadoPedidos() {
                 onClick={() => navigate(`/editarPedido/${pedido.id}`)}
                 className="action-btn"
               >
-                Ver Detalles
+                Editar Pedido
               </Button>
 
               {pedido.estado === 'PENDIENTE' && (

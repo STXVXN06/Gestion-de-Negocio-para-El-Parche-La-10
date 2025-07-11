@@ -848,7 +848,7 @@ public class PedidoController {
 
         sb.append("<div class='header'>");
         sb.append("<h1>FACTURA PARCHELA10</h1>");
-        sb.append("<p>Calle 10 #10-10, Bogotá | Tel: 123-456-7890</p>");
+        sb.append("<p>Barcelona Quindio | Tel: 312 823 8027</p>");
         sb.append("</div>");
 
         sb.append("<div class='details'>");

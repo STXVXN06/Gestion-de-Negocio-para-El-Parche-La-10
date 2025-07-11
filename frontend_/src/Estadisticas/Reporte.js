@@ -10,6 +10,8 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import jsPDF from 'jspdf';
+
+// eslint-disable-next-line
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format, startOfDay, endOfDay, subYears, addYears } from 'date-fns';
@@ -213,9 +215,9 @@ const Reporte = () => {
 
     // Encabezados de la tabla
     pdf.setFontSize(12);
-    const headers = ['Descripción', 'Fecha', 'Tipo', 'Monto'];
-    const colWidths = [80, 40, 30, 30];
-    const colPositions = [20, 100, 140, 170];
+    const headers = ['Descripción', 'Fecha', 'Tipo', 'Monto', 'Estado'];
+    const colWidths = [70, 35, 25, 25, 25];
+    const colPositions = [20, 90, 125, 150, 175];
 
     // Dibujar encabezados
     headers.forEach((header, i) => {
@@ -252,6 +254,9 @@ const Reporte = () => {
       // Monto
       const montoText = trans.tipo === 'INGRESO' ? `+$${trans.monto.toLocaleString()}` : `-$${trans.monto.toLocaleString()}`;
       pdf.text(montoText, colPositions[3], yPos);
+
+      // Estado (nueva columna)
+      pdf.text(trans.estado || 'ACTIVO', colPositions[4], yPos);
 
       // Incrementar posición Y (ajustar si la descripción es multilínea)
       yPos += Math.max(10, descLines.length * 7);
@@ -323,6 +328,16 @@ const Reporte = () => {
         <div className="monto-transaccion">
           {record.tipo === 'INGRESO' ? '+' : '-'}${monto.toLocaleString()}
         </div>
+      )
+    },
+    {
+      title: 'Estado',
+      dataIndex: 'estado',
+      key: 'estado',
+      render: (estado) => (
+        <Tag color={estado === 'ANULADO' ? 'red' : 'blue'}>
+          {estado || 'ACTIVO'}
+        </Tag>
       )
     },
   ];
@@ -460,6 +475,7 @@ const Reporte = () => {
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
                     size="middle"
+                    rowClassName={(record) => record.estado === 'ANULADO' ? 'transaccion-anulada' : ''}
                   />
                 </Card>
               </>
