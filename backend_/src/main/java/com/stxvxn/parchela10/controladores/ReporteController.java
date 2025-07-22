@@ -1,6 +1,7 @@
 package com.stxvxn.parchela10.controladores;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.stxvxn.parchela10.DTO.IngredienteUsoDTO;
+import com.stxvxn.parchela10.DTO.ProductoVentaDTO;
 import com.stxvxn.parchela10.servicios.ReporteServiceImpl;
 
 @RestController
@@ -47,4 +50,19 @@ public class ReporteController {
         Long egresos = reporteService.calcularEgresos(fechaInicio, fechaFin);
         return ResponseEntity.ok(egresos);
     }
+
+    @GetMapping("/productos-mas-vendidos")
+    public ResponseEntity<List<ProductoVentaDTO>> getProductosVendidos(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        return ResponseEntity.ok(reporteService.obtenerProductosMasVendidos(fechaInicio, fechaFin));
+    }
+
+    @GetMapping("/ingredientes-utilizados")
+    public ResponseEntity<List<IngredienteUsoDTO>> getIngredientesUsados(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        return ResponseEntity.ok(reporteService.obtenerIngredientesUtilizados(fechaInicio, fechaFin));
+    }
+
 }

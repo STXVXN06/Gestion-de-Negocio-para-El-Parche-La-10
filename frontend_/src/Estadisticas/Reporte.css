@@ -101,6 +101,19 @@
     }
 }
 
+.compras-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    height: 100%;
+}
+
+@media (max-width: 992px) {
+    .compras-grid-2col {
+        grid-template-columns: 1fr;
+    }
+}
+
 .ingredientes-container,
 .lista-compras-container {
     background: #fff;
@@ -114,6 +127,40 @@
 
 .ingredientes-container {
     max-height: 75vh;
+    overflow-y: auto;
+}
+
+.ingredientes-stock-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.ingredientes-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.mi-lista-compras-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    padding: 20px;
+    height: 500px;
+    display: flex;
+    flex-direction: column;
+}
+
+.mi-lista-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 400px;
     overflow-y: auto;
 }
 
@@ -234,6 +281,7 @@
     gap: 10px;
     margin-top: auto;
     padding-top: 20px;
+    background: #fff;
 }
 
 .add-item-input {
@@ -356,11 +404,6 @@
     color: white !important;
 }
 
-.transaccion-anulada td {
-  text-decoration: line-through;
-  color: #b0b0b0;
-}
-
 .ingredientes-container::-webkit-scrollbar,
 .lista-compras-container::-webkit-scrollbar {
     width: 8px;
@@ -382,3 +425,266 @@
 .lista-compras-container::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+.stats-section {
+    margin-bottom: 25px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stats-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: none;
+}
+
+.ingredientes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.ingrediente-card {
+    background: #f9f9f9;
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.3s;
+}
+
+.ingrediente-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #1890ff;
+}
+
+.ingrediente-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ingrediente-nombre {
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+}
+
+.cantidad-tag {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.ingrediente-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: #666;
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.ranking-tag {
+    font-weight: bold;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.cantidad-vendida {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.top-product-row {
+    background-color: #e6f7ff !important;
+}
+
+.top-product-row:hover td {
+    background-color: #bae7ff !important;
+}
+
+/* Estadísticas - Estilos adicionales */
+.stats-row {
+    margin-bottom: 24px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-title {
+    margin-bottom: 0 !important;
+    display: flex;
+    align-items: center;
+}
+
+.section-title .anticon {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.stats-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+}
+
+.ingredientes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.ingrediente-card {
+    border-radius: 8px;
+    transition: transform 0.3s;
+}
+
+.ingrediente-card:hover {
+    transform: translateY(-3px);
+}
+
+.ingrediente-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.ingrediente-nombre {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.ingrediente-cantidad {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.cantidad-tag {
+    font-size: 14px;
+    padding: 4px 8px;
+}
+
+.ranking-container {
+    display: flex;
+    align-items: center;
+}
+
+.ranking-tag {
+    margin-left: 8px;
+}
+
+.gold-medal {
+    color: gold;
+    font-size: 18px;
+}
+
+.silver-medal {
+    color: silver;
+    font-size: 18px;
+}
+
+.bronze-medal {
+    color: #cd7f32;
+    /* bronze color */
+    font-size: 18px;
+}
+
+.cantidad-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.trend-indicator {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.top-product-row {
+    background-color: #e6f7ff !important;
+}
+
+.empty-alert {
+    margin-top: 16px;
+}
+
+/* Nuevos estilos para el componente Estadisticas */
+.tablas-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.tabla-col {
+    flex: 1;
+    min-width: 300px;
+}
+
+.stats-row .ant-col {
+    margin-bottom: 16px;
+}
+
+.stats-card .ant-card-head {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 0 16px;
+}
+
+.stats-card .ant-card-body {
+    padding: 16px;
+}
+
+.stats-card .ant-table {
+    background: #fff;
+}
+
+.stats-card .ant-card-extra {
+    padding: 16px 0;
+}
+
+/* Ajustes para las tablas */
+.stats-card .ant-table-container {
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+}
+
+.stats-card .ant-table-thead>tr>th {
+    background-color: #fafafa;
+    font-weight: 600;
+}
+
+.stats-card .ant-table-tbody>tr>td {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Mantener estilos existentes para otros componentes */
+.reporte-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #f5f7fa;
+    min-height: 100vh;
+}
+
+/* ... (todos los estilos anteriores se mantienen igual) ... */
