@@ -1,5 +1,6 @@
 package com.stxvxn.parchela10.repositorios;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.Query;
@@ -13,4 +14,9 @@ public interface AdicionPedidoRepository extends CrudRepository<AdicionPedido, L
 
     @Query("SELECT a FROM AdicionPedido a JOIN FETCH a.ingrediente WHERE a.pedido.id = :pedidoId")
     List<AdicionPedido> findByPedidoIdWithIngrediente(@Param("pedidoId") Long pedidoId);
+
+    @Query("SELECT a FROM AdicionPedido a WHERE a.pedido.fecha BETWEEN :start AND :end")
+    List<AdicionPedido> findByPedidoFechaBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

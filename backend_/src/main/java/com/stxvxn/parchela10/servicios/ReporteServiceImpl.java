@@ -10,16 +10,22 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.stxvxn.parchela10.DTO.AdicionReporteDTO;
+import com.stxvxn.parchela10.DTO.DesperdicioReporteDTO;
 import com.stxvxn.parchela10.DTO.IngredienteUsoDTO;
 import com.stxvxn.parchela10.DTO.ProductoVentaDTO;
+import com.stxvxn.parchela10.entidades.AdicionPedido;
 import com.stxvxn.parchela10.entidades.ComboProducto;
+import com.stxvxn.parchela10.entidades.Desperdicio;
 import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.entidades.Pedido;
 import com.stxvxn.parchela10.entidades.PedidoCombo;
 import com.stxvxn.parchela10.entidades.PedidoProducto;
 import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
+import com.stxvxn.parchela10.repositorios.AdicionPedidoRepository;
 import com.stxvxn.parchela10.repositorios.ComboProductoRepository;
+import com.stxvxn.parchela10.repositorios.DesperdicioRepository;
 import com.stxvxn.parchela10.repositorios.MovimientoCajaRepository;
 import com.stxvxn.parchela10.repositorios.PedidoComboRepository;
 import com.stxvxn.parchela10.repositorios.PedidoProductoRepository;
@@ -46,8 +52,12 @@ public class ReporteServiceImpl implements IReporteService {
 
     @Autowired
     private ProductoIngredienteRepository productoIngredienteRepository;
-    
-    
+
+    @Autowired
+    private AdicionPedidoRepository adicionPedidoRepository;
+
+    @Autowired
+    private DesperdicioRepository desperdicioRepository;
 
     @Override
     public Long calcularGanancias(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
@@ -122,7 +132,7 @@ public class ReporteServiceImpl implements IReporteService {
         // Mapa para acumular uso de ingredientes
         Map<Long, IngredienteUsoDTO> usoMap = new HashMap<>();
 
-        // Procesar productos individuales
+        // 1. Procesar productos individuales de pedidos
         for (Pedido pedido : pedidos) {
             List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(pedido.getId());
             for (PedidoProducto pp : productos) {
@@ -130,23 +140,12 @@ public class ReporteServiceImpl implements IReporteService {
                         .findByProductoId(pp.getProducto().getId());
 
                 for (ProductoIngrediente pi : ingredientes) {
-                    Ingrediente ingrediente = pi.getIngrediente();
-                    Double cantidadUsada = pi.getCantidadNecesaria() * pp.getCantidad();
-
-                    IngredienteUsoDTO dto = usoMap.getOrDefault(ingrediente.getId(),
-                            new IngredienteUsoDTO(
-                                    ingrediente.getId(),
-                                    ingrediente.getNombre(),
-                                    0.0,
-                                    ingrediente.getUnidadMedida().getNombre()));
-
-                    dto.setCantidadUsada(dto.getCantidadUsada() + cantidadUsada);
-                    usoMap.put(ingrediente.getId(), dto);
+                    agregarUsoIngrediente(usoMap, pi.getIngrediente(), pi.getCantidadNecesaria() * pp.getCantidad());
                 }
             }
         }
 
-        // Procesar combos
+        // 2. Procesar combos de pedidos
         for (Pedido pedido : pedidos) {
             List<PedidoCombo> combos = pedidoComboRepository.findByPedidoId(pedido.getId());
             for (PedidoCombo pc : combos) {
@@ -156,24 +155,99 @@ public class ReporteServiceImpl implements IReporteService {
                             .findByProductoId(cp.getProducto().getId());
 
                     for (ProductoIngrediente pi : ingredientes) {
-                        Ingrediente ingrediente = pi.getIngrediente();
-                        Double cantidadUsada = pi.getCantidadNecesaria() * cp.getCantidad() * pc.getCantidad();
-
-                        IngredienteUsoDTO dto = usoMap.getOrDefault(ingrediente.getId(),
-                                new IngredienteUsoDTO(
-                                        ingrediente.getId(),
-                                        ingrediente.getNombre(),
-                                        0.0,
-                                        ingrediente.getUnidadMedida().getNombre()));
-
-                        dto.setCantidadUsada(dto.getCantidadUsada() + cantidadUsada);
-                        usoMap.put(ingrediente.getId(), dto);
+                        double cantidadUsada = pi.getCantidadNecesaria() * cp.getCantidad() * pc.getCantidad();
+                        agregarUsoIngrediente(usoMap, pi.getIngrediente(), cantidadUsada);
                     }
                 }
             }
         }
 
+        // 3. Procesar adiciones de pedidos
+        for (Pedido pedido : pedidos) {
+            List<AdicionPedido> adiciones = adicionPedidoRepository.findByPedidoId(pedido.getId());
+            for (AdicionPedido adicion : adiciones) {
+                // Convertir Integer a Double
+                agregarUsoIngrediente(usoMap, adicion.getIngrediente(), adicion.getCantidad().doubleValue());
+            }
+        }
+
+        // 4. Procesar desperdicios (tanto de ingredientes como de productos)
+        List<Desperdicio> desperdicios = desperdicioRepository.findByFechaBetween(fechaInicio, fechaFin);
+        for (Desperdicio desperdicio : desperdicios) {
+            // Desperdicio de ingrediente directo
+            if (desperdicio.getIngrediente() != null && desperdicio.getCantidadIngrediente() != null) {
+                agregarUsoIngrediente(usoMap, desperdicio.getIngrediente(), desperdicio.getCantidadIngrediente());
+            }
+
+            // Desperdicio de producto (sumar sus ingredientes)
+            if (desperdicio.getProducto() != null && desperdicio.getCantidadProducto() != null) {
+                List<ProductoIngrediente> ingredientes = productoIngredienteRepository
+                        .findByProductoId(desperdicio.getProducto().getId());
+
+                for (ProductoIngrediente pi : ingredientes) {
+                    double cantidadTotal = pi.getCantidadNecesaria() * desperdicio.getCantidadProducto();
+                    agregarUsoIngrediente(usoMap, pi.getIngrediente(), cantidadTotal);
+                }
+            }
+        }
+
         return new ArrayList<>(usoMap.values());
+    }
+
+    // Método auxiliar actualizado para manejar Double
+    private void agregarUsoIngrediente(Map<Long, IngredienteUsoDTO> usoMap, Ingrediente ingrediente, Double cantidad) {
+        IngredienteUsoDTO dto = usoMap.getOrDefault(ingrediente.getId(),
+                new IngredienteUsoDTO(
+                        ingrediente.getId(),
+                        ingrediente.getNombre(),
+                        0.0,
+                        ingrediente.getUnidadMedida().getNombre()));
+
+        dto.setCantidadUsada(dto.getCantidadUsada() + cantidad);
+        usoMap.put(ingrediente.getId(), dto);
+    }
+
+    @Override
+    public List<AdicionReporteDTO> obtenerAdicionesIngredientes(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+
+        List<AdicionPedido> adiciones = adicionPedidoRepository.findByPedidoFechaBetween(fechaInicio, fechaFin);
+
+        return adiciones.stream().map(adicion -> {
+            AdicionReporteDTO dto = new AdicionReporteDTO();
+            dto.setPedidoId(adicion.getPedido().getId());
+            dto.setIngredienteNombre(adicion.getIngrediente().getNombre());
+            dto.setCantidad(adicion.getCantidad().doubleValue());
+            dto.setUnidadMedida(adicion.getIngrediente().getUnidadMedida().getSimbolo());
+            dto.setFecha(adicion.getPedido().getFecha());
+            dto.setAplicadoA(adicion.getAplicadoA());
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<DesperdicioReporteDTO> obtenerDesperdicios(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+
+        List<Desperdicio> desperdicios = desperdicioRepository.findByFechaBetween(fechaInicio, fechaFin);
+
+        return desperdicios.stream().map(desperdicio -> {
+            DesperdicioReporteDTO dto = new DesperdicioReporteDTO();
+            dto.setId(desperdicio.getId());
+            dto.setFecha(desperdicio.getFecha());
+            dto.setMotivo(desperdicio.getMotivo());
+
+            if (desperdicio.getProducto() != null) {
+                dto.setTipoItem("PRODUCTO");
+                dto.setNombreItem(desperdicio.getProducto().getNombre());
+                dto.setCantidad(desperdicio.getCantidadProducto());
+                dto.setUnidadMedida("unidades");
+            } else if (desperdicio.getIngrediente() != null) {
+                dto.setTipoItem("INGREDIENTE");
+                dto.setNombreItem(desperdicio.getIngrediente().getNombre());
+                dto.setCantidad(desperdicio.getCantidadIngrediente());
+                dto.setUnidadMedida(desperdicio.getIngrediente().getUnidadMedida().getSimbolo());
+            }
+            return dto;
+        }).collect(Collectors.toList());
     }
 
 }

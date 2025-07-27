@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.stxvxn.parchela10.DTO.AdicionReporteDTO;
+import com.stxvxn.parchela10.DTO.DesperdicioReporteDTO;
 import com.stxvxn.parchela10.DTO.IngredienteUsoDTO;
 import com.stxvxn.parchela10.DTO.ProductoVentaDTO;
 import com.stxvxn.parchela10.servicios.ReporteServiceImpl;
@@ -63,6 +65,20 @@ public class ReporteController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
         return ResponseEntity.ok(reporteService.obtenerIngredientesUtilizados(fechaInicio, fechaFin));
+    }
+
+    @GetMapping("/adiciones-ingredientes")
+    public ResponseEntity<List<AdicionReporteDTO>> getAdicionesIngredientes(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        return ResponseEntity.ok(reporteService.obtenerAdicionesIngredientes(fechaInicio, fechaFin));
+    }
+
+    @GetMapping("/desperdicios")
+    public ResponseEntity<List<DesperdicioReporteDTO>> getDesperdicios(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin) {
+        return ResponseEntity.ok(reporteService.obtenerDesperdicios(fechaInicio, fechaFin));
     }
 
 }
