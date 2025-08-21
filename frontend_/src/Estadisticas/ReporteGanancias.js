@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Card, Statistic, Table, Tag, Row, Col, Button, Spin, Alert } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, DownloadOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format, subYears, addYears } from 'date-fns';
+import { format, subYears, addYears, startOfDay, endOfDay } from 'date-fns';
 import './Reporte.css';
+import api from '../api';
 
 const API_BASE_URL = 'http://localhost:9090/api';
 
 const ReporteGanancias = () => {
-  const [fechasTemporales, setFechasTemporales] = useState([null, null]);
-  const [fechasActivas, setFechasActivas] = useState({ startDate: null, endDate: null });
   const [ganancias, setGanancias] = useState(0);
   const [ingresos, setIngresos] = useState(0);
   const [gastos, setGastos] = useState(0);
@@ -21,48 +19,51 @@ const ReporteGanancias = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const setFixedTimes = (date, isStart) => {
-    const newDate = new Date(date);
-    if (isStart) {
-      newDate.setHours(0, 0, 0, 0);
-    } else {
-      newDate.setHours(23, 59, 59, 999);
-    }
-    return newDate;
+  // Función para obtener inicio y fin del día actual (00:00:00 a 23:59:59)
+  const getTodayRange = () => {
+    const hoy = new Date();
+    const start = startOfDay(hoy); // 00:00:00
+    const end = endOfDay(hoy);     // 23:59:59
+    return { start, end };
   };
 
+  const [fechaInicio, setFechaInicio] = useState(getTodayRange().start);
+  const [fechaFin, setFechaFin] = useState(getTodayRange().end);
+
   const restablecerFechas = () => {
-    const hoy = new Date();
-    const hoyInicio = setFixedTimes(hoy, true);
-    const hoyFin = setFixedTimes(hoy, false);
-    setFechasTemporales([hoyInicio, hoyFin]);
-    setFechasActivas({ startDate: hoyInicio, endDate: hoyFin });
+    const { start, end } = getTodayRange();
+    setFechaInicio(start);
+    setFechaFin(end);
   };
 
   const obtenerDatos = async () => {
-    if (!fechasActivas.startDate || !fechasActivas.endDate) return;
+    if (!fechaInicio || !fechaFin) return;
     setLoading(true);
     setError(null);
     try {
       const params = {
-        fechaInicio: format(fechasActivas.startDate, "yyyy-MM-dd'T'HH:mm:ss"),
-        fechaFin: format(fechasActivas.endDate, "yyyy-MM-dd'T'HH:mm:ss")
+        fechaInicio: moment(fechaInicio).format("YYYY-MM-DDTHH:mm:ss"),
+        fechaFin: moment(fechaFin).format("YYYY-MM-DDTHH:mm:ss")
       };
+
       const [gananciasRes, ingresosRes, gastosRes, transaccionesRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/reportes/ganancias`, { params }),
-        axios.get(`${API_BASE_URL}/reportes/ingresos`, { params }),
-        axios.get(`${API_BASE_URL}/reportes/egresos`, { params }),
-        axios.get(`${API_BASE_URL}/movimientosCaja`)
+        api.get(`${API_BASE_URL}/reportes/ganancias`, { params }),
+        api.get(`${API_BASE_URL}/reportes/ingresos`, { params }),
+        api.get(`${API_BASE_URL}/reportes/egresos`, { params }),
+        api.get(`${API_BASE_URL}/movimientosCaja`)
       ]);
+
       setGanancias(gananciasRes.data);
       setIngresos(ingresosRes.data);
       setGastos(gastosRes.data);
+
       const transaccionesFiltradas = transaccionesRes.data
         .filter(t => {
           const fechaTrans = new Date(t.fecha);
-          return fechaTrans >= fechasActivas.startDate && fechaTrans <= fechasActivas.endDate;
+          return fechaTrans >= fechaInicio && fechaTrans <= fechaFin;
         })
         .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
       setTransacciones(transaccionesFiltradas);
     } catch (err) {
       setError('Error al obtener los datos. Verifica la conexión con el servidor.');
@@ -72,30 +73,13 @@ const ReporteGanancias = () => {
     }
   };
 
-  const handleDateChange = (dates) => {
-    const [start, end] = dates;
-    const adjustedDates = [...dates];
-    if (end) {
-      const newEnd = new Date(end);
-      newEnd.setHours(23, 59, 59, 999);
-      adjustedDates[1] = newEnd;
-    }
-    setFechasTemporales(adjustedDates);
-    if (start && end) {
-      setFechasActivas({
-        startDate: setFixedTimes(start, true),
-        endDate: setFixedTimes(end, false)
-      });
-    }
-  };
-
   const generarPDFReporteGanancias = () => {
     const pdf = new jsPDF('p', 'mm', 'a4');
     pdf.setFontSize(18);
     pdf.text('Reporte de Ganancias', 105, 15, null, null, 'center');
     pdf.setFontSize(12);
     pdf.text(
-      `Período: ${format(fechasActivas.startDate, 'dd/MM/yyyy HH:mm')} - ${format(fechasActivas.endDate, 'dd/MM/yyyy HH:mm')}`,
+      `Período: ${format(fechaInicio, 'dd/MM/yyyy HH:mm')} - ${format(fechaFin, 'dd/MM/yyyy HH:mm')}`,
       105, 25, null, null, 'center'
     );
     pdf.setFontSize(14);
@@ -186,31 +170,48 @@ const ReporteGanancias = () => {
   }, []);
 
   useEffect(() => {
-    if (fechasActivas.startDate && fechasActivas.endDate) {
+    if (fechaInicio && fechaFin) {
       obtenerDatos();
     }
-  }, [fechasActivas]);
+  }, [fechaInicio, fechaFin]);
 
   return (
     <Card className="card-reporte" id="reporte-ganancias">
       {error && <Alert message={error} type="error" showIcon className="error-alert" />}
       <div className="filtros-container">
-        <DatePicker
-          selectsRange
-          startDate={fechasTemporales[0]}
-          endDate={fechasTemporales[1]}
-          onChange={handleDateChange}
-          minDate={subYears(new Date(), 1)}
-          maxDate={addYears(new Date(), 1)}
-          showTimeSelect
-          timeFormat="HH:mm"
-          timeIntervals={15}
-          dateFormat="dd/MM/yyyy HH:mm"
-          className="custom-datepicker"
-          popperPlacement="bottom-start"
-          placeholderText="Seleccione un rango de fechas"
-          isClearable
-        />
+        <div className="date-pickers-container">
+          <div className="date-picker-group">
+            <label>Fecha Inicio:</label>
+            <DatePicker
+              selected={fechaInicio}
+              onChange={date => setFechaInicio(date)}
+              showTimeSelect
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              timeCaption="Hora"
+              dateFormat="dd/MM/yyyy HH:mm"
+              className="custom-datepicker"
+              popperPlacement="bottom-start"
+            />
+          </div>
+
+          <div className="date-picker-group">
+            <label>Fecha Fin:</label>
+            <DatePicker
+              selected={fechaFin}
+              onChange={date => setFechaFin(date)}
+              showTimeSelect
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              timeCaption="Hora"
+              dateFormat="dd/MM/yyyy HH:mm"
+              className="custom-datepicker"
+              popperPlacement="bottom-start"
+              minDate={fechaInicio}
+            />
+          </div>
+        </div>
+
         <Button
           type="default"
           onClick={restablecerFechas}
@@ -218,12 +219,12 @@ const ReporteGanancias = () => {
         >
           Hoy
         </Button>
-        {fechasActivas.startDate && fechasActivas.endDate && (
-          <Tag color="blue" className="date-range-tag">
-            {format(fechasActivas.startDate, 'dd/MM/yyyy HH:mm')} -{' '}
-            {format(fechasActivas.endDate, 'dd/MM/yyyy HH:mm')}
-          </Tag>
-        )}
+
+        <Tag color="blue" className="date-range-tag">
+          {format(fechaInicio, 'dd/MM/yyyy HH:mm')} -{' '}
+          {format(fechaFin, 'dd/MM/yyyy HH:mm')}
+        </Tag>
+
         <Button
           type="primary"
           icon={<DownloadOutlined />}
@@ -233,6 +234,7 @@ const ReporteGanancias = () => {
           Descargar PDF
         </Button>
       </div>
+
       {loading ? (
         <div className="loading-container">
           <Spin size="large" />

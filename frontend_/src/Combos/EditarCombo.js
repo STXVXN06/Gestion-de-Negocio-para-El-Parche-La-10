@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'; // Agregar useMemo
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
     Form,
     Input,
@@ -24,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './EditarCombo.css';
+import api from '../api';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -57,12 +57,12 @@ export default function EditarCombo() {
                 setLoading(true);
 
                 // Obtener combo
-                const comboResponse = await axios.get(`http://localhost:9090/api/combos/${id}`);
+                const comboResponse = await api.get(`http://localhost:9090/api/combos/${id}`);
                 const comboData = comboResponse.data;
                 setCombo(comboData);
 
                 // Obtener productos disponibles
-                const productosResponse = await axios.get('http://localhost:9090/api/productos');
+                const productosResponse = await api.get('http://localhost:9090/api/productos');
                 setProductos(productosResponse.data);
 
                 // Transformar productos del combo al formato necesario
@@ -155,7 +155,7 @@ export default function EditarCombo() {
         };
 
         try {
-            await axios.put(`http://localhost:9090/api/combos/${id}`, comboData);
+            await api.put(`http://localhost:9090/api/combos/${id}`, comboData);
             notification.success({
                 message: 'Combo actualizado',
                 description: `El combo "${values.nombre}" ha sido actualizado exitosamente`,
@@ -353,7 +353,7 @@ export default function EditarCombo() {
                                         <label className="form-label">Cantidad</label>
                                         <InputNumber
                                             min={1}
-                                            max={10}
+                                            max={100}
                                             value={cantidad}
                                             onChange={setCantidad}
                                             className="w-100"

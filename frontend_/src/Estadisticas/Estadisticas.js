@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
     Card, Table, Tag, Row, Col, Button, Spin, Alert, Typography, Statistic, Input,
-    Collapse, Tooltip, Space
+    Collapse, Tooltip
 } from 'antd';
 import {
     BarChartOutlined, DownloadOutlined, ShoppingOutlined, PlusOutlined, MinusOutlined,
@@ -13,16 +12,15 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format, startOfDay, endOfDay, subYears, addYears } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import './Reporte.css';
+import api from '../api';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Panel } = Collapse;
 const API_BASE_URL = 'http://localhost:9090/api';
 
 const Estadisticas = () => {
-    const [fechasTemporales, setFechasTemporales] = useState([null, null]);
-    const [fechasActivas, setFechasActivas] = useState({ startDate: null, endDate: null });
     const [productosVendidos, setProductosVendidos] = useState([]);
     const [ingredientesUtilizados, setIngredientesUtilizados] = useState([]);
     const [adiciones, setAdiciones] = useState([]);
@@ -36,35 +34,33 @@ const Estadisticas = () => {
     const [searchDesperdicios, setSearchDesperdicios] = useState('');
     const [activePanels, setActivePanels] = useState(['productos', 'ingredientes', 'adiciones', 'desperdicios']);
 
-    const setFixedTimes = (date, isStart) => {
-        if (!date) return null;
-        const newDate = new Date(date);
-        if (isStart) {
-            newDate.setHours(0, 0, 0, 0);
-        } else {
-            newDate.setHours(23, 59, 59, 999);
-        }
-        return newDate;
+    // Función para obtener inicio y fin del día actual (00:00:00 a 23:59:59)
+    const getTodayRange = () => {
+        const hoy = new Date();
+        const start = startOfDay(hoy); // 00:00:00
+        const end = endOfDay(hoy);     // 23:59:59
+        return { start, end };
     };
 
+    const [fechaInicio, setFechaInicio] = useState(getTodayRange().start);
+    const [fechaFin, setFechaFin] = useState(getTodayRange().end);
+
     const restablecerFechas = () => {
-        const hoy = new Date();
-        const hoyInicio = setFixedTimes(hoy, true);
-        const hoyFin = setFixedTimes(hoy, false);
-        setFechasTemporales([hoyInicio, hoyFin]);
-        setFechasActivas({ startDate: hoyInicio, endDate: hoyFin });
+        const { start, end } = getTodayRange();
+        setFechaInicio(start);
+        setFechaFin(end);
     };
 
     const obtenerDatos = async () => {
-        if (!fechasActivas.startDate || !fechasActivas.endDate) return;
+        if (!fechaInicio || !fechaFin) return;
 
         setLoading(true);
         setError(null);
 
         try {
             const params = {
-                fechaInicio: format(fechasActivas.startDate, "yyyy-MM-dd'T'HH:mm:ss"),
-                fechaFin: format(fechasActivas.endDate, "yyyy-MM-dd'T'HH:mm:ss")
+                fechaInicio: moment(fechaInicio).format("YYYY-MM-DDTHH:mm:ss"),
+                fechaFin: moment(fechaFin).format("YYYY-MM-DDTHH:mm:ss")
             };
 
             const [
@@ -73,10 +69,10 @@ const Estadisticas = () => {
                 adicionesRes,
                 desperdiciosRes
             ] = await Promise.all([
-                axios.get(`${API_BASE_URL}/reportes/productos-mas-vendidos`, { params }),
-                axios.get(`${API_BASE_URL}/reportes/ingredientes-utilizados`, { params }),
-                axios.get(`${API_BASE_URL}/reportes/adiciones-ingredientes`, { params }),
-                axios.get(`${API_BASE_URL}/reportes/desperdicios`, { params })
+                api.get(`${API_BASE_URL}/reportes/productos-mas-vendidos`, { params }),
+                api.get(`${API_BASE_URL}/reportes/ingredientes-utilizados`, { params }),
+                api.get(`${API_BASE_URL}/reportes/adiciones-ingredientes`, { params }),
+                api.get(`${API_BASE_URL}/reportes/desperdicios`, { params })
             ]);
 
             setProductosVendidos(productosRes.data);
@@ -94,17 +90,6 @@ const Estadisticas = () => {
         }
     };
 
-    const handleDateChange = (dates) => {
-        const [start, end] = dates;
-        setFechasTemporales(dates);
-        if (start && end) {
-            setFechasActivas({
-                startDate: setFixedTimes(start, true),
-                endDate: setFixedTimes(end, false)
-            });
-        }
-    };
-
     const generarPDFReporte = () => {
         const pdf = new jsPDF();
         const margin = 20;
@@ -117,7 +102,7 @@ const Estadisticas = () => {
 
         pdf.setFontSize(12);
         pdf.text(
-            `Período: ${format(fechasActivas.startDate, 'dd/MM/yyyy')} - ${format(fechasActivas.endDate, 'dd/MM/yyyy')}`,
+            `Período: ${format(fechaInicio, 'dd/MM/yyyy')} - ${format(fechaFin, 'dd/MM/yyyy')}`,
             105, yPos, null, null, 'center'
         );
         yPos += 15;
@@ -390,29 +375,49 @@ const Estadisticas = () => {
     }, []);
 
     useEffect(() => {
-        if (fechasActivas.startDate && fechasActivas.endDate) {
+        if (fechaInicio && fechaFin) {
             obtenerDatos();
         }
-    }, [fechasActivas]);
+    }, [fechaInicio, fechaFin]);
 
     return (
         <Card className="card-reporte" id="reporte-estadisticas">
             {error && <Alert message={error} type="error" showIcon className="error-alert" />}
 
             <div className="filtros-container">
-                <DatePicker
-                    selectsRange
-                    startDate={fechasTemporales[0]}
-                    endDate={fechasTemporales[1]}
-                    onChange={handleDateChange}
-                    minDate={subYears(new Date(), 1)}
-                    maxDate={addYears(new Date(), 1)}
-                    dateFormat="dd/MM/yyyy"
-                    className="custom-datepicker"
-                    popperPlacement="bottom-start"
-                    placeholderText="Seleccione un rango de fechas"
-                    isClearable
-                />
+                <div className="date-pickers-container">
+                    <div className="date-picker-group">
+                        <label>Fecha Inicio:</label>
+                        <DatePicker
+                            selected={fechaInicio}
+                            onChange={date => setFechaInicio(date)}
+                            showTimeSelect
+                            timeFormat="HH:mm"
+                            timeIntervals={15}
+                            timeCaption="Hora"
+                            dateFormat="dd/MM/yyyy HH:mm"
+                            className="custom-datepicker"
+                            popperPlacement="bottom-start"
+                        />
+                    </div>
+
+                    <div className="date-picker-group">
+                        <label>Fecha Fin:</label>
+                        <DatePicker
+                            selected={fechaFin}
+                            onChange={date => setFechaFin(date)}
+                            showTimeSelect
+                            timeFormat="HH:mm"
+                            timeIntervals={15}
+                            timeCaption="Hora"
+                            dateFormat="dd/MM/yyyy HH:mm"
+                            className="custom-datepicker"
+                            popperPlacement="bottom-start"
+                            minDate={fechaInicio}
+                        />
+                    </div>
+                </div>
+
                 <Button
                     type="default"
                     onClick={restablecerFechas}
@@ -420,12 +425,12 @@ const Estadisticas = () => {
                 >
                     Hoy
                 </Button>
-                {fechasActivas.startDate && fechasActivas.endDate && (
-                    <Tag color="blue" className="date-range-tag">
-                        {format(fechasActivas.startDate, 'dd/MM/yyyy')} -{' '}
-                        {format(fechasActivas.endDate, 'dd/MM/yyyy')}
-                    </Tag>
-                )}
+
+                <Tag color="blue" className="date-range-tag">
+                    {format(fechaInicio, 'dd/MM/yyyy HH:mm')} -{' '}
+                    {format(fechaFin, 'dd/MM/yyyy HH:mm')}
+                </Tag>
+
                 <Button
                     type="primary"
                     icon={<DownloadOutlined />}

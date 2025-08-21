@@ -1,4 +1,3 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
@@ -6,6 +5,7 @@ import { Tabs, Input, Button, Card, Badge, Alert, List, Row, Col, InputNumber, S
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
 import './AgregarPedido.css';
 import { notification } from 'antd';
+import api from '../api';
 
 const { TabPane } = Tabs;
 const { Panel } = Collapse;
@@ -48,7 +48,7 @@ export default function EditarPedido() {
         cargarDatosIniciales();
         const cargarStockDesechables = async () => {
             try {
-                const res = await axios.get('http://localhost:9090/api/ingredientes');
+                const res = await api.get('http://localhost:9090/api/ingredientes');
                 const ingredientes = res.data;
 
                 setStockDesechables({
@@ -67,10 +67,10 @@ export default function EditarPedido() {
         try {
             setLoading(true);
             const [pedidoRes, productosRes, combosRes, ingredientesRes] = await Promise.all([
-                axios.get(`http://localhost:9090/api/pedidos/${id}`),
-                axios.get('http://localhost:9090/api/productos'),
-                axios.get('http://localhost:9090/api/combos'),
-                axios.get('http://localhost:9090/api/ingredientes')
+                api.get(`http://localhost:9090/api/pedidos/${id}`),
+                api.get('http://localhost:9090/api/productos'),
+                api.get('http://localhost:9090/api/combos'),
+                api.get('http://localhost:9090/api/ingredientes')
             ]);
 
             // Filtrar ingredientes adicionables
@@ -326,7 +326,7 @@ export default function EditarPedido() {
             };
 
             // Enviar actualización
-            const { data } = await axios.put(
+            const { data } = await api.put(
                 `http://localhost:9090/api/pedidos/${id}/productos`,
                 payload,
                 { headers: { 'Content-Type': 'application/json' } }

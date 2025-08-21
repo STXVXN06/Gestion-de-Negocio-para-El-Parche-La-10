@@ -4,9 +4,10 @@ import { PlusOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons';
 import './Reporte.css';
 import jsPDF from 'jspdf';
 import moment from 'moment';
-import axios from 'axios';
+import api from '../api';
 
 const API_BASE_URL = 'http://localhost:9090/api';
+
 
 const ListaCompras = () => {
   const [todosIngredientesBajos, setTodosIngredientesBajos] = useState([]);
@@ -19,7 +20,7 @@ const ListaCompras = () => {
     const fetchIngredientesBajos = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${API_BASE_URL}/ingredientes/bajo-stock`);
+        const res = await api.get(`${API_BASE_URL}/ingredientes/bajo-stock`);
         setTodosIngredientesBajos(res.data);
         setIngredientesBajosAMostrar(res.data);
         console.log('Ingredientes bajos:', res.data);

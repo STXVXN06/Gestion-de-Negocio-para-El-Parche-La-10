@@ -1,10 +1,10 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NumericFormat } from 'react-number-format';
 import { Tabs, Input, Button, Card, Badge, Row, Col, InputNumber, Switch, Descriptions, Collapse } from 'antd';
 import { SearchOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, HomeOutlined } from '@ant-design/icons';
 import './AgregarPedido.css';
+import api from '../api';
 
 const { TabPane } = Tabs;
 const { Panel } = Collapse;
@@ -33,9 +33,9 @@ export default function AgregarPedido() {
     const cargarDatos = async () => {
       try {
         const [productosResponse, combosResponse, ingredientesResponse] = await Promise.all([
-          axios.get('http://localhost:9090/api/productos'),
-          axios.get('http://localhost:9090/api/combos'),
-          axios.get('http://localhost:9090/api/ingredientes')
+          api.get('http://localhost:9090/api/productos'),
+          api.get('http://localhost:9090/api/combos'),
+          api.get('http://localhost:9090/api/ingredientes')
         ]);
 
         setProductosDisponibles(productosResponse.data.filter(p => p.activo));
@@ -180,7 +180,7 @@ export default function AgregarPedido() {
     };
 
     try {
-      await axios.post('http://localhost:9090/api/pedidos', pedidoDTO);
+      await api.post('http://localhost:9090/api/pedidos', pedidoDTO);
       navigate('/pedidos');
     } catch (error) {
       if (error.response?.data?.detalles) {

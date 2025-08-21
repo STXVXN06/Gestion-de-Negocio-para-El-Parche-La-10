@@ -1,9 +1,9 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Modal, DatePicker, Select } from 'antd';
 import { CloseCircleOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ModalCompra from './ModalCompra';
+import api from '../api';
 
 const { Column } = Table;
 const { RangePicker } = DatePicker;
@@ -23,18 +23,18 @@ export default function ListadoCompras() {
   }, []);
 
   const cargarCompras = async () => {
-    const resultado = await axios.get(urlBase);
+    const resultado = await api.get(urlBase);
     setCompras(resultado.data);
   };
 
   const cargarIngredientes = async () => {
-    const resultado = await axios.get('http://localhost:9090/api/ingredientes');
+    const resultado = await api.get('http://localhost:9090/api/ingredientes');
     setIngredientes(resultado.data);
   };
 
   const eliminarCompra = async (id) => {
     if (window.confirm('¿Está seguro de anular esta compra?')) {
-      await axios.patch(`${urlBase}/${id}`);
+      await api.patch(`${urlBase}/${id}`);
       cargarCompras();
     }
   };

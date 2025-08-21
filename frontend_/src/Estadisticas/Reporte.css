@@ -1041,3 +1041,138 @@
     color: #595959;
     font-size: 12px;
 }
+
+/* Nuevos estilos para la sección de fechas */
+.filtros-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.date-pickers-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    flex-grow: 1;
+}
+
+.date-picker-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 180px;
+}
+
+.date-picker-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #5a6d87;
+    margin-bottom: 6px;
+    margin-left: 4px;
+}
+
+.custom-datepicker {
+    padding: 10px 14px;
+    border: 1px solid #d0d7e0;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    width: 100%;
+}
+
+.custom-datepicker:hover {
+    border-color: #a6c0fe;
+}
+
+.custom-datepicker:focus {
+    border-color: #4c7bf3;
+    box-shadow: 0 0 0 3px rgba(76, 123, 243, 0.15);
+    outline: none;
+}
+
+.date-controls-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.reset-button {
+    height: 40px;
+    padding: 0 16px;
+    background: #f0f4f9;
+    border: 1px solid #d0d7e0;
+    color: #4a5568;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.reset-button:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e0;
+}
+
+.date-range-tag {
+    background: #edf2ff;
+    color: #4c7bf3;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+}
+
+.download-pdf-btn {
+    height: 40px;
+    padding: 0 16px;
+    background: #4c7bf3;
+    color: white;
+    border-radius: 8px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.download-pdf-btn:hover {
+    background: #3a66d8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .filtros-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .date-pickers-container {
+        width: 100%;
+    }
+
+    .date-controls-group {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 10px;
+    }
+
+    .download-pdf-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .date-picker-group {
+        min-width: 100%;
+    }
+}

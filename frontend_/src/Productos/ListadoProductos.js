@@ -1,4 +1,3 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Input, Select, Space, Modal } from 'antd';
 import { 
@@ -8,6 +7,7 @@ import {
   CloseCircleOutlined 
 } from '@ant-design/icons';
 import { NumericFormat } from 'react-number-format';
+import api from '../api';
 
 const { Column } = Table;
 const { Search } = Input;
@@ -23,7 +23,7 @@ export default function ListadoProductos() {
   }, []);
 
   const cargarProductos = async () => {
-    const resultado = await axios.get(urlBase);
+    const resultado = await api.get(urlBase);
     setProductos(resultado.data);
   };
 
@@ -38,8 +38,8 @@ export default function ListadoProductos() {
       onOk: async () => {
         try {
           if (accion === 'habilitar') {
-            const productoResponse = await axios.get(`${urlBase}/${id}`);
-            const ingredientesResponse = await axios.get(`${urlBase}/${id}/ingredientes`);
+            const productoResponse = await api.get(`${urlBase}/${id}`);
+            const ingredientesResponse = await api.get(`${urlBase}/${id}/ingredientes`);
             
             const dto = {
               nombre: productoResponse.data.nombre,
@@ -51,9 +51,9 @@ export default function ListadoProductos() {
                 cantidad: i.cantidadNecesaria
               }))
             };
-            await axios.put(`${urlBase}/${id}`, dto);
+            await api.put(`${urlBase}/${id}`, dto);
           } else {
-            await axios.delete(`${urlBase}/${id}`);
+            await api.delete(`${urlBase}/${id}`);
           }
           cargarProductos();
         } catch (error) {

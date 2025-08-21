@@ -935,4 +935,15 @@ public class PedidoController {
         sb.append("</body></html>");
         return sb.toString();
     }
+
+    @GetMapping("/{id}/ingredientes-cancelacion")
+    public ResponseEntity<Map<String, Object>> obtenerIngredientesCancelacion(@PathVariable Long id) {
+        try {
+            Map<String, Object> resultado = pedidoService.calcularIngredientesCancelacion(id);
+            return ResponseEntity.ok(resultado);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error calculando ingredientes: " + e.getMessage()));
+        }
+    }
 }

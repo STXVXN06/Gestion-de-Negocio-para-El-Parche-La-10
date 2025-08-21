@@ -2,6 +2,7 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Input, Space, Modal, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import api from '../api'
 
 const { Column } = Table;
 const { Search } = Input;
@@ -20,7 +21,7 @@ export default function ListadoIngredientes() {
   const cargarIngredientes = async () => {
     setLoading(true);
     try {
-      const resultado = await axios.get(urlBase);
+      const resultado = await api.get(urlBase);
       setIngredientes(resultado.data);
     } catch (error) {
       console.error("Error cargando ingredientes:", error);
@@ -53,9 +54,9 @@ export default function ListadoIngredientes() {
 
   return (
     <div className="container" style={{ padding: '24px' }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
         marginBottom: 24,
         gap: 16,
         flexWrap: 'wrap'
@@ -63,7 +64,7 @@ export default function ListadoIngredientes() {
         <div>
           <Text strong style={{ fontSize: 24 }}>Inventario de Ingredientes</Text>
         </div>
-        
+
         <Space>
           <Search
             placeholder="Buscar ingredientes..."
@@ -71,9 +72,9 @@ export default function ListadoIngredientes() {
             onChange={(e) => setBusqueda(e.target.value)}
             style={{ width: 250 }}
           />
-          
-          <Button 
-            type="primary" 
+
+          <Button
+            type="primary"
             icon={<PlusOutlined />}
             href="/agregarIngrediente"
           >
@@ -176,8 +177,8 @@ export default function ListadoIngredientes() {
           width={150}
           render={(_, record) => (
             <Space>
-              <Button 
-                icon={<EditOutlined />} 
+              <Button
+                icon={<EditOutlined />}
                 href={`/editarIngrediente/${record.id}`}
               />
 

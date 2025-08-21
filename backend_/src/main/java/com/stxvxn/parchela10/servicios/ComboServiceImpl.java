@@ -62,6 +62,8 @@ public class ComboServiceImpl implements IComboService {
                 comboProducto.setCombo(comboGuardado);
                 comboProducto.setProducto(producto);
                 comboProducto.setCantidad(itemDTO.getCantidad());
+                System.out.println(producto.getNombre() + " agregado al combo " + comboGuardado.getNombre());
+                System.out.println("Cantidad: " + itemDTO.getCantidad());
 
                 comboProductoRepository.save(comboProducto);
             }

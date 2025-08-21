@@ -1,4 +1,3 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -15,6 +14,9 @@ import {
   Switch
 } from 'antd';
 import { SaveOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+
+import api from '../api';
+
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -44,7 +46,7 @@ export default function EditarIngrediente() {
         precioAdicion: values.adicionable ? values.precioAdicion : null
       };
 
-      await axios.put(`${urlBase}/${id}`, ingredienteActualizado);
+      await api.put(`${urlBase}/${id}`, ingredienteActualizado);
       navigate('/ingredientes');
     } catch (error) {
       console.error('Error al actualizar:', error);
@@ -57,8 +59,8 @@ export default function EditarIngrediente() {
     const cargarDatos = async () => {
       try {
         const [unidadesResponse, ingredienteResponse] = await Promise.all([
-          axios.get(urlUnidades),
-          axios.get(`${urlBase}/${id}`)
+          api.get(urlUnidades),
+          api.get(`${urlBase}/${id}`)
         ]);
 
         setUnidadesMedida(unidadesResponse.data);

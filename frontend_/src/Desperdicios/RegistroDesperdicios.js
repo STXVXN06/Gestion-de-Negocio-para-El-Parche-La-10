@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
+import api from '../api';
 
 export default function RegistroDesperdicios() {
   const [productos, setProductos] = useState([]);
@@ -18,8 +18,8 @@ export default function RegistroDesperdicios() {
 
   const cargarDatosIniciales = async () => {
     const [prodRes, ingRes] = await Promise.all([
-      axios.get('http://localhost:9090/api/productos'),
-      axios.get('http://localhost:9090/api/ingredientes')
+      api.get('http://localhost:9090/api/productos'),
+      api.get('http://localhost:9090/api/ingredientes')
     ]);
     setProductos(prodRes.data);
     setIngredientes(ingRes.data);
@@ -72,7 +72,7 @@ export default function RegistroDesperdicios() {
         }
       });
 
-      const response = await axios.post('http://localhost:9090/api/desperdicios', desperdicios);
+      const response = await api.post('http://localhost:9090/api/desperdicios', desperdicios);
       alert('Desperdicios registrados correctamente!');
       resetEstado();
     } catch (error) {

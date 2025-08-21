@@ -53,3 +53,30 @@
       min-height: calc(100vh - 96px);
     }
   }
+
+  .app-content {
+  padding: 20px;
+  min-height: calc(100vh - 64px); /* Ajusta según la altura de tu header */
+  background-color: #f5f7fa;
+}
+
+.vh-100 {
+  min-height: 100vh;
+}
+
+.bg-light {
+  background-color: #f8f9fa !important;
+}
+
+.rounded-15 {
+  border-radius: 15px;
+}
+
+.input-group-text {
+  transition: all 0.3s ease;
+}
+
+.input-group:focus-within .input-group-text {
+  background-color: #e9ecef;
+  border-color: #86b7fe;
+}

@@ -66,8 +66,6 @@ public class PedidoServiceImpl implements IPedidoService {
     @Autowired
     private ComboProductoRepository comboProductoRepo;
 
-
-
     @Transactional
     @Override
     public Optional<Pedido> crearPedido(Pedido pedido, List<PedidoProducto> pedidoProductos,
@@ -400,6 +398,73 @@ public class PedidoServiceImpl implements IPedidoService {
         pedido.setAdiciones(adicionesFinales);
 
         return Optional.of(pedido);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Map<String, Object> calcularIngredientesCancelacion(Long id) {
+        Optional<Pedido> pedidoOpt = pedidoRepository.findById(id);
+        if (pedidoOpt.isEmpty()) {
+            throw new RuntimeException("Pedido no encontrado");
+        }
+
+        Pedido pedido = pedidoOpt.get();
+        Map<String, Double> ingredientesADevolver = new HashMap<>();
+
+        // Calcular ingredientes de productos
+        List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(id);
+        for (PedidoProducto pp : productos) {
+            List<ProductoIngrediente> ingredientes = productoIngredienteRepository
+                    .findByProductoId(pp.getProducto().getId());
+            for (ProductoIngrediente pi : ingredientes) {
+                double cantidad = pi.getCantidadNecesaria() * pp.getCantidad();
+                ingredientesADevolver.merge(
+                        pi.getIngrediente().getNombre(),
+                        cantidad,
+                        Double::sum);
+            }
+        }
+
+        // Calcular ingredientes de combos
+        List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(id);
+        for (PedidoCombo pc : combos) {
+            List<ComboProducto> productosCombo = comboProductoRepo.findByComboId(pc.getCombo().getId());
+            for (ComboProducto cp : productosCombo) {
+                List<ProductoIngrediente> ingredientes = productoIngredienteRepository
+                        .findByProductoId(cp.getProducto().getId());
+                for (ProductoIngrediente pi : ingredientes) {
+                    double cantidad = pi.getCantidadNecesaria() * cp.getCantidad() * pc.getCantidad();
+                    ingredientesADevolver.merge(
+                            pi.getIngrediente().getNombre(),
+                            cantidad,
+                            Double::sum);
+                }
+            }
+        }
+
+        // Calcular ingredientes de adiciones
+        List<AdicionPedido> adiciones = adicionPedidoRepository.findByPedidoIdWithIngrediente(id);
+        for (AdicionPedido ap : adiciones) {
+            ingredientesADevolver.merge(
+                    ap.getIngrediente().getNombre(),
+                    (double) ap.getCantidad(),
+                    Double::sum);
+        }
+
+        // Formatear resultado
+        List<Map<String, Object>> listaIngredientes = new ArrayList<>();
+        ingredientesADevolver.forEach((nombre, cantidad) -> {
+            Map<String, Object> ing = new HashMap<>();
+            ing.put("nombre", nombre);
+            ing.put("cantidad", cantidad);
+            ing.put("unidad", "unidades"); // Esto debería venir de la unidad de medida
+            listaIngredientes.add(ing);
+        });
+
+        return Map.of(
+                "pedidoId", id,
+                "ingredientes", listaIngredientes,
+                "totalIngredientes", ingredientesADevolver.size());
     }
 
 }

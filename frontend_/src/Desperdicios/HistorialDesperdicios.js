@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
+import api from '../api';
+
+
 
 export default function HistorialDesperdicios() {
   const [desperdicios, setDesperdicios] = useState([]);
@@ -12,7 +14,7 @@ export default function HistorialDesperdicios() {
 
   const cargarHistorial = async () => {
     try {
-      const response = await axios.get('http://localhost:9090/api/desperdicios');
+      const response = await api.get('http://localhost:9090/api/desperdicios');
       setDesperdicios(response.data);
     } catch (error) {
       console.error('Error cargando historial:', error);

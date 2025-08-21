@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react'; // Añadido useCallback
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   Badge,
   Button,
@@ -14,7 +13,8 @@ import {
   Modal,
   Tabs,
   Input,
-  notification
+  notification,
+  DatePicker
 } from 'antd';
 import {
   FilterOutlined,
@@ -32,12 +32,15 @@ import {
   UpOutlined,
   MailOutlined,
   CheckCircleFilled,
-  CloseCircleFilled
+  CloseCircleFilled,
+  ExclamationCircleOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons';
-import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { parseISO } from 'date-fns'; // Eliminada importación innecesaria de 'es'
 import { NumericFormat } from 'react-number-format';
 import './ListadoPedidos.css';
+import api from '../api';
+import moment from 'moment';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -47,7 +50,7 @@ export default function ListadoPedidos() {
   const navigate = useNavigate();
   const urlBase = 'http://localhost:9090/api/pedidos';
   const [todosPedidos, setTodosPedidos] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState('hoy');
+  const [filtroFecha, setFiltroFecha] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [cargando, setCargando] = useState(true);
   const [estadisticas, setEstadisticas] = useState({
@@ -58,24 +61,28 @@ export default function ListadoPedidos() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalFacturaVisible, setModalFacturaVisible] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
-  const [activeTab, setActiveTab] = useState('todos');
   const [expandedPedidoId, setExpandedPedidoId] = useState(null);
   const [emailCliente, setEmailCliente] = useState('');
   const [enviandoFactura, setEnviandoFactura] = useState(false);
   const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState(null);
   const [mensajeEnvio, setMensajeEnvio] = useState(null);
-  const [tipoMensaje, setTipoMensaje] = useState(null); // 'exito' o 'error'
+  const [tipoMensaje, setTipoMensaje] = useState(null);
+  const [modalCancelarVisible, setModalCancelarVisible] = useState(false);
+  const [ingredientesCancelacion, setIngredientesCancelacion] = useState([]);
+  const [cargandoIngredientes, setCargandoIngredientes] = useState(false);
+  const [modalEfectivoVisible, setModalEfectivoVisible] = useState(false);
+  const [montoRecibido, setMontoRecibido] = useState('');
+  const { RangePicker } = DatePicker;
 
-  useEffect(() => {
-    cargarPedidos();
-  }, []);
+  // CORRECCIÓN: Estado para pedido a cancelar
+  const [pedidoACancelar, setPedidoACancelar] = useState(null);
 
-  const cargarPedidos = async () => {
+  // CORRECCIÓN: Usar useCallback para resolver dependencia de useEffect
+  const cargarPedidos = useCallback(async () => {
     try {
       setCargando(true);
-      const resultado = await axios.get(urlBase);
+      const resultado = await api.get(urlBase);
       setTodosPedidos(resultado.data);
-      calcularEstadisticas(resultado.data);
     } catch (error) {
       console.error("Error cargando pedidos:", error);
       notification.error({
@@ -85,18 +92,38 @@ export default function ListadoPedidos() {
     } finally {
       setCargando(false);
     }
-  };
+  }, []);
+
+  const vuelto = useMemo(() => {
+    if (!pedidoSeleccionado || !montoRecibido) return 0;
+    return parseFloat(montoRecibido) - pedidoSeleccionado.total;
+  }, [pedidoSeleccionado, montoRecibido]);
+
+  useEffect(() => {
+    cargarPedidos();
+
+  }, [cargarPedidos]); // CORRECCIÓN: Añadida dependencia
+
+  useEffect(() => {
+    if (todosPedidos.length > 0) {
+      const entregados = todosPedidos.filter(p => p.estado === 'ENTREGADO').length;
+      const pendientes = todosPedidos.filter(p => p.estado === 'PENDIENTE').length;
+      const cancelados = todosPedidos.filter(p => p.estado === 'CANCELADO').length;
+
+      setEstadisticas({ entregados, pendientes, cancelados });
+    }
+  }, [todosPedidos]);
 
   const pedidosFiltrados = useMemo(() => {
     return todosPedidos.filter(pedido => {
       const fechaPedido = parseISO(pedido.fecha);
 
-      const cumpleFecha =
-        filtroFecha === 'todos' ||
-        (filtroFecha === 'hoy' && isToday(fechaPedido)) ||
-        (filtroFecha === 'semana' && isThisWeek(fechaPedido, { locale: es })) ||
-        (filtroFecha === 'mes' && isThisMonth(fechaPedido));
-
+      let cumpleFecha = true;
+      if (filtroFecha && filtroFecha[0] && filtroFecha[1]) {
+        const fechaInicio = filtroFecha[0].startOf('day');
+        const fechaFin = filtroFecha[1].endOf('day');
+        cumpleFecha = fechaPedido >= fechaInicio && fechaPedido <= fechaFin;
+      }
       const cumpleEstado =
         filtroEstado === 'todos' ||
         pedido.estado === filtroEstado;
@@ -119,7 +146,7 @@ export default function ListadoPedidos() {
         ? `${urlBase}/${idPedido}/estado?estado=${nuevoEstado}&metodoPago=${metodoPago}`
         : `${urlBase}/${idPedido}/estado?estado=${nuevoEstado}`;
 
-      await axios.put(url);
+      await api.put(url);
 
       setTodosPedidos(prev => prev.map(pedido =>
         pedido.id === idPedido
@@ -129,7 +156,11 @@ export default function ListadoPedidos() {
 
       if (nuevoEstado === 'ENTREGADO') {
         setMetodoPagoSeleccionado(metodoPago);
-        setModalFacturaVisible(true);
+        if (metodoPago === 'EFECTIVO') {
+          setModalFacturaVisible(false);
+        } else {
+          setModalFacturaVisible(true);
+        }
       } else {
         notification.success({
           message: 'Estado actualizado',
@@ -152,12 +183,32 @@ export default function ListadoPedidos() {
     setModalVisible(true);
   };
 
+  const manejarPagoEfectivo = () => {
+    setModalVisible(false);
+    setMontoRecibido('');
+    setModalEfectivoVisible(true);
+  };
+
+  // Nuevo: Confirmar pago en efectivo
+  const confirmarPagoEfectivo = async () => {
+    if (vuelto < 0) {
+      notification.error({
+        message: 'Monto insuficiente',
+        description: 'El monto recibido es menor que el total a pagar.',
+      });
+      return;
+    }
+
+    await cambiarEstado(pedidoSeleccionado.id, 'ENTREGADO', 'EFECTIVO');
+    setModalEfectivoVisible(false);
+
+    setModalFacturaVisible(true);
+  };
+
   const enviarFactura = async () => {
-    // Limpiar mensajes previos
     setMensajeEnvio(null);
     setTipoMensaje(null);
 
-    // Validación de formato de correo
     if (!emailCliente) {
       setTipoMensaje('error');
       setMensajeEnvio('Por favor ingrese un correo electrónico');
@@ -172,13 +223,11 @@ export default function ListadoPedidos() {
 
     try {
       setEnviandoFactura(true);
-      await axios.post(`${urlBase}/${pedidoSeleccionado.id}/enviarFactura?email=${emailCliente}`);
+      await api.post(`${urlBase}/${pedidoSeleccionado.id}/enviarFactura?email=${emailCliente}`);
 
-      // Mensaje de éxito
       setTipoMensaje('exito');
       setMensajeEnvio(`¡Factura enviada correctamente a ${emailCliente}!`);
 
-      // Cerrar modal después de 2 segundos
       setTimeout(() => {
         setModalFacturaVisible(false);
         setEmailCliente('');
@@ -221,6 +270,23 @@ export default function ListadoPedidos() {
         icon: <InfoCircleOutlined />,
         color: '#868e96'
       };
+    }
+  };
+
+  const obtenerIngredientesCancelacion = async (idPedido) => {
+    try {
+      setCargandoIngredientes(true);
+      const response = await api.get(`${urlBase}/${idPedido}/ingredientes-cancelacion`);
+      setIngredientesCancelacion(response.data.ingredientes || []);
+    } catch (error) {
+      console.error("Error obteniendo ingredientes:", error);
+      notification.error({
+        message: 'Error',
+        description: 'No se pudieron obtener los ingredientes para cancelación',
+      });
+      setIngredientesCancelacion([]);
+    } finally {
+      setCargandoIngredientes(false);
     }
   };
 
@@ -360,16 +426,19 @@ export default function ListadoPedidos() {
             Filtros:
           </h5>
 
-          <Select
-            value={filtroFecha}
-            onChange={setFiltroFecha}
-            suffixIcon={<CalendarOutlined />}
-          >
-            <Option value="hoy">Hoy</Option>
-            <Option value="semana">Esta semana</Option>
-            <Option value="mes">Este mes</Option>
-            <Option value="todos">Todas las fechas</Option>
-          </Select>
+          <RangePicker
+            showTime={{
+              format: 'HH:mm',
+              defaultValue: [
+                moment().startOf('day'),
+                moment().endOf('day')
+              ]
+            }}
+            format="YYYY-MM-DD HH:mm"
+            onChange={dates => setFiltroFecha(dates)}
+            placeholder={['Fecha inicio', 'Fecha fin']}
+            className="date-range-picker"
+          />
 
           <Select
             value={filtroEstado}
@@ -404,7 +473,7 @@ export default function ListadoPedidos() {
 
   const renderPedido = (pedido) => {
     const { bg, border, icon, color } = getCardColor(pedido.estado);
-    const fechaFormateada = format(parseISO(pedido.fecha), 'dd MMM yyyy - h:mm a', { locale: es });
+    const fechaFormateada = moment(pedido.fecha).format('DD MMM YYYY - h:mm a');
     const isExpanded = expandedPedidoId === pedido.id;
 
     return (
@@ -533,12 +602,16 @@ export default function ListadoPedidos() {
                     danger
                     onClick={(e) => {
                       e.stopPropagation();
-                      cambiarEstado(pedido.id, 'CANCELADO');
+                      setPedidoACancelar(pedido); // CORRECCIÓN: Usa el estado definido
+                      obtenerIngredientesCancelacion(pedido.id);
+                      setModalCancelarVisible(true);
                     }}
                     className="action-btn"
                   >
                     Cancelar
                   </Button>
+
+                  {/* Modal para cancelación */}
                   <Button
                     type="primary"
                     onClick={(e) => {
@@ -694,7 +767,7 @@ export default function ListadoPedidos() {
                 type="primary"
                 icon={<DollarOutlined />}
                 className="pago-option"
-                onClick={() => cambiarEstado(pedidoSeleccionado.id, 'ENTREGADO', 'EFECTIVO')}
+                onClick={manejarPagoEfectivo}
               >
                 EFECTIVO
               </Button>
@@ -708,6 +781,95 @@ export default function ListadoPedidos() {
                 TRANSFERENCIA
               </Button>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Nuevo Modal para pago en efectivo */}
+      <Modal
+        title="Pago en Efectivo"
+        open={modalEfectivoVisible}
+        onCancel={() => setModalEfectivoVisible(false)}
+        footer={[
+          <Button
+            key="back"
+            onClick={() => {
+              setModalEfectivoVisible(false);
+              setModalVisible(true); // Volver a selección de método
+            }}
+            icon={<ArrowLeftOutlined />}
+          >
+            Volver
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            onClick={confirmarPagoEfectivo}
+            disabled={vuelto < 0}
+          >
+            Confirmar Pago
+          </Button>
+        ]}
+        centered
+        className="efectivo-modal"
+      >
+        {pedidoSeleccionado && (
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4>Pedido #{pedidoSeleccionado.id}</h4>
+              <div className="modal-total">
+                Total a pagar:
+                <NumericFormat
+                  value={pedidoSeleccionado.total}
+                  displayType="text"
+                  thousandSeparator=","
+                  prefix="$"
+                  className="total-value"
+                />
+              </div>
+            </div>
+
+            <div className="monto-recibido">
+              <label>Monto recibido:</label>
+              <NumericFormat
+                value={montoRecibido}
+                onValueChange={(values) => {
+                  setMontoRecibido(values.floatValue);
+                }}
+                thousandSeparator=","
+                prefix="$"
+                allowNegative={false}
+                decimalScale={0}
+                inputMode="numeric"
+                className="ant-input"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            {montoRecibido && (
+              <div className="vuelto-section">
+                <span>Vuelto:</span>
+                <NumericFormat
+                  value={vuelto}
+                  displayType="text"
+                  thousandSeparator=","
+                  prefix="$"
+                  className="vuelto-value"
+                  style={{ color: vuelto < 0 ? 'red' : 'green' }}
+                />
+              </div>
+            )}
+
+            {vuelto < 0 && (
+              <p className="text-danger">
+                El monto recibido es insuficiente. Faltan: $
+                <NumericFormat
+                  value={Math.abs(vuelto)}
+                  displayType="text"
+                  thousandSeparator=","
+                />
+              </p>
+            )}
           </div>
         )}
       </Modal>
@@ -790,6 +952,79 @@ export default function ListadoPedidos() {
             </p>
           )}
         </div>
+      </Modal>
+
+      {/* Modal para cancelar pedido */}
+      <Modal
+        title={`Cancelar pedido #${pedidoACancelar?.id}`}
+        open={modalCancelarVisible}
+        onCancel={() => setModalCancelarVisible(false)}
+        footer={[
+          <Button key="back" onClick={() => setModalCancelarVisible(false)}>
+            Volver
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            danger
+            onClick={() => {
+              cambiarEstado(pedidoACancelar.id, 'CANCELADO');
+              setModalCancelarVisible(false);
+            }}
+            disabled={cargandoIngredientes}
+          >
+            Confirmar Cancelación
+          </Button>
+        ]}
+        centered
+        className="cancelacion-modal"
+      >
+        {pedidoACancelar && (
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4>Pedido #{pedidoACancelar.id}</h4>
+              <div className="modal-total">
+                <NumericFormat
+                  value={pedidoACancelar.total}
+                  displayType="text"
+                  thousandSeparator=","
+                  prefix="Total: $"
+                />
+              </div>
+            </div>
+
+            <p className="modal-text">
+              ¿Está seguro que desea cancelar este pedido?
+              Al cancelar, se devolverán los siguientes ingredientes al stock:
+            </p>
+
+            {cargandoIngredientes ? (
+              <div className="loading-ingredientes">
+                <Spin size="small" />
+                <span>Calculando ingredientes a devolver...</span>
+              </div>
+            ) : ingredientesCancelacion.length > 0 ? (
+              <div className="ingredientes-list">
+                <div className="section-title">Ingredientes a devolver:</div>
+                {ingredientesCancelacion.map((ingrediente, index) => (
+                  <div key={index} className="ingrediente-item">
+                    <span className="ingrediente-nombre">{ingrediente.nombre}: </span>
+                    <span className="ingrediente-cantidad">
+                      {ingrediente.cantidad} {ingrediente.unidad}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-warning">No se encontraron ingredientes para devolver</p>
+            )}
+
+            <p className="modal-warning">
+              <ExclamationCircleOutlined className="text-danger me-2" />
+              Esta acción no se puede deshacer
+            </p>
+          </div>
+        )}
       </Modal>
     </div>
   );

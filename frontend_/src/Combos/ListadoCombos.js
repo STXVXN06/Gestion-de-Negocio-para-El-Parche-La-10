@@ -1,6 +1,5 @@
 // src/components/ListadoCombos.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Card, Button, Modal, List, Tag, Spin, notification } from 'antd';
 import {
     PlusOutlined,
@@ -12,6 +11,7 @@ import {
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './ListadoCombos.css'; // Archivo CSS para estilos personalizados
 import { useNavigate } from 'react-router-dom';
+import api from '../api';
 
 const { Meta } = Card;
 
@@ -32,7 +32,7 @@ export default function ListadoCombos() {
     const fetchCombos = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:9090/api/combos');
+            const response = await api.get('http://localhost:9090/api/combos');
 
             // Verificar si la respuesta es un mensaje de texto
             if (typeof response.data === 'string') {
@@ -56,7 +56,7 @@ export default function ListadoCombos() {
 
     const handleDelete = async () => {
         try {
-            await axios.delete(`http://localhost:9090/api/combos/${comboToDelete.id}`);
+            await api.delete(`http://localhost:9090/api/combos/${comboToDelete.id}`);
             notification.success({
                 message: 'Combo desactivado',
                 description: 'El combo ha sido desactivado correctamente.',

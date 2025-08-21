@@ -1,4 +1,3 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -14,6 +13,8 @@ import {
   Switch
 } from 'antd';
 import { SaveOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+
+import api from '../api';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -35,7 +36,7 @@ export default function AgregarIngrediente() {
         precioAdicion: values.adicionable ? values.precioAdicion : null
       };
       
-      await axios.post('http://localhost:9090/api/ingredientes', ingredienteParaEnviar);
+      await api.post('http://localhost:9090/api/ingredientes', ingredienteParaEnviar);
       form.resetFields();
       navigate('/ingredientes');
     } catch (error) {
@@ -57,7 +58,7 @@ export default function AgregarIngrediente() {
 
   useEffect(() => {
     const cargarUnidades = async () => {
-      const resultado = await axios.get(urlUnidades);
+      const resultado = await api.get(urlUnidades);
       setUnidadesMedida(resultado.data);
     };
     cargarUnidades();

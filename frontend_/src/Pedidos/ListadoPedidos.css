@@ -522,3 +522,69 @@
 .icono-mensaje {
   font-size: 18px;
 }
+
+.date-range-picker {
+  width: 100%;
+  max-width: 400px;
+  margin-right: 10px;
+}
+
+/* Ajustes para responsive */
+@media (max-width: 768px) {
+  .filter-section {
+    flex-direction: column;
+  }
+
+  .date-range-picker,
+  .ant-select {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+}
+
+/* Estilos para el modal de efectivo */
+.efectivo-modal .modal-content {
+  padding: 15px;
+}
+
+.efectivo-modal .modal-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 15px;
+}
+
+.efectivo-modal .modal-total {
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.efectivo-modal .monto-recibido {
+  margin-bottom: 20px;
+}
+
+.efectivo-modal .monto-recibido label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.efectivo-modal .vuelto-section {
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.efectivo-modal .vuelto-value {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.total-value {
+  font-weight: bold;
+  margin-left: 10px;
+}

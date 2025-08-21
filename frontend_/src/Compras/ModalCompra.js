@@ -1,8 +1,9 @@
+// ModalCompra.js
 import React, { useState } from 'react';
-import { Modal, Button, Form, FloatingLabel, Row, Col } from 'react-bootstrap';
-import axios from 'axios';
-import { CurrencyDollar, CartCheck, XCircle, Save } from 'react-bootstrap-icons';
-import './ModalCompra.css'; // Archivo CSS personalizado
+import { Modal, Button, Form, FloatingLabel, Row, Col, AutoComplete } from 'react-bootstrap';
+import { CurrencyDollar, CartCheck, XCircle, Save, Search } from 'react-bootstrap-icons';
+import './ModalCompra.css';
+import api from '../api';
 
 const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
   const urlBase = 'http://localhost:9090/api/compras';
@@ -13,8 +14,31 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
     cantidad: 0,
     costoTotal: 0,
   });
-
+  const [ingredientesFiltrados, setIngredientesFiltrados] = useState([]);
+  const [searchText, setSearchText] = useState('');
   const [validated, setValidated] = useState(false);
+
+  // Filtrar ingredientes basado en texto de búsqueda
+  const filtrarIngredientes = (search) => {
+    setSearchText(search);
+    if (!search) {
+      setIngredientesFiltrados(ingredientes);
+      return;
+    }
+
+    const filtrados = ingredientes.filter(ing =>
+      ing.nombre.toLowerCase().includes(search.toLowerCase())
+    );
+    setIngredientesFiltrados(filtrados);
+  };
+
+  // Seleccionar ingrediente del dropdown
+  const seleccionarIngrediente = (ingredienteId) => {
+    setFormData({
+      ...formData,
+      ingredienteId: ingredienteId
+    });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +71,7 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
     };
 
     try {
-      await axios.post(urlBase, payload);
+      await api.post(urlBase, payload);
       onSave();
       handleClose();
       setValidated(false);
@@ -94,23 +118,45 @@ const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
 
             {formData.tipo === 'INGREDIENTE' ? (
               <>
-                <Col md={6}>
-                  <FloatingLabel controlId="ingredienteId" label="Ingrediente *">
-                    <Form.Select
-                      name="ingredienteId"
-                      value={formData.ingredienteId}
-                      onChange={handleChange}
-                      required
-                      className="form-select-custom"
-                    >
-                      <option value="">Seleccione un ingrediente...</option>
-                      {ingredientes.map((ing) => (
-                        <option key={ing.id} value={ing.id}>
-                          {ing.nombre} ({ing.unidadMedida.simbolo})
-                        </option>
+                <Col md={12}>
+                  <Form.Group controlId="ingredienteSearch" className="mb-3">
+                    <Form.Label>Buscar ingrediente *</Form.Label>
+                    <div className="position-relative">
+                      <Form.Control
+                        type="text"
+                        placeholder="Escribe para buscar..."
+                        value={searchText}
+                        onChange={(e) => filtrarIngredientes(e.target.value)}
+                        className="form-input-custom ps-4"
+                      />
+                      <Search className="position-absolute top-50 start-0 translate-middle-y ms-2" />
+                    </div>
+
+                    <div className="mt-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {(searchText ? ingredientesFiltrados : ingredientes).map(ing => (
+                        <div
+                          key={ing.id}
+                          className={`p-2 mb-1 rounded ${formData.ingredienteId === ing.id ? 'bg-primary text-white' : 'bg-light'}`}
+                          onClick={() => seleccionarIngrediente(ing.id)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {ing.nombre}
+                          <span className="ms-2 text-muted">
+                            ({ing.unidadMedida?.simbolo || 'sin unidad'})
+                          </span>
+                        </div>
                       ))}
-                    </Form.Select>
-                  </FloatingLabel>
+                    </div>
+
+                    {formData.ingredienteId && (
+                      <div className="mt-2">
+                        <strong>Seleccionado:</strong>
+                        <span className="ms-2">
+                          {ingredientes.find(i => i.id === formData.ingredienteId)?.nombre || ''}
+                        </span>
+                      </div>
+                    )}
+                  </Form.Group>
                 </Col>
 
                 <Col md={6}>

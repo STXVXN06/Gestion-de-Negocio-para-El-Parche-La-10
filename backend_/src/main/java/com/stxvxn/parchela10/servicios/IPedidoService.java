@@ -1,6 +1,7 @@
 package com.stxvxn.parchela10.servicios;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.stxvxn.parchela10.entidades.Pedido;
@@ -19,4 +20,6 @@ public interface IPedidoService {
     Optional<Pedido> cambiarEstado(Long id, String estado, String metodoPago);
 
     Optional<Pedido> actualizar(Long id, Pedido pedido);
+
+    Map<String, Object> calcularIngredientesCancelacion(Long id);
 }

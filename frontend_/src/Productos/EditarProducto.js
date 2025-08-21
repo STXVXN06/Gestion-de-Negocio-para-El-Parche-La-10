@@ -1,6 +1,6 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import api from '../api';
 
 export default function EditarProducto() {
 
@@ -39,7 +39,7 @@ const onSubmit = async (e) => {
             }))
     };
 
-    await axios.put(`http://localhost:9090/api/productos/${id}`, dto);
+    await api.put(`http://localhost:9090/api/productos/${id}`, dto);
     Navegacion('/productos');
 };
 
@@ -47,13 +47,13 @@ useEffect(() => {
     const cargarDatos = async () => {
         try {
             // 1. Cargar ingredientes disponibles primero
-            const ingredientesResponse = await axios.get('http://localhost:9090/api/ingredientes');
+            const ingredientesResponse = await api.get('http://localhost:9090/api/ingredientes');
             setIngredientesDisponibles(ingredientesResponse.data);
 
             // 2. Si hay ID, cargar producto e ingredientes
             if (id) {
-                const productoResponse = await axios.get(`http://localhost:9090/api/productos/${id}`);
-                const ingredientesProductoResponse = await axios.get(`http://localhost:9090/api/productos/${id}/ingredientes`);
+                const productoResponse = await api.get(`http://localhost:9090/api/productos/${id}`);
+                const ingredientesProductoResponse = await api.get(`http://localhost:9090/api/productos/${id}/ingredientes`);
                 
                 // 3. Mapear ingredientes correctamente
                 const ingredientesMapeados = ingredientesProductoResponse.data.ingredientes.map(pi => ({

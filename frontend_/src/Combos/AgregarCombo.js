@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
 import { Form, Input, InputNumber, Button, Select, Table, Tag, Card, Divider, Typography, notification, Spin } from 'antd';
 import { PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './AgregarCombo.css';
 import { useNavigate } from 'react-router-dom';
+import api from '../api';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -29,7 +29,7 @@ export default function AgregarCombo() {
     useEffect(() => {
         const fetchProductos = async () => {
             try {
-                const response = await axios.get('http://localhost:9090/api/productos');
+                const response = await api.get('http://localhost:9090/api/productos');
                 setProductos(response.data);
                 setLoading(false);
             } catch (error) {
@@ -110,7 +110,7 @@ export default function AgregarCombo() {
         };
 
         try {
-            await axios.post('http://localhost:9090/api/combos', comboData);
+            await api.post('http://localhost:9090/api/combos', comboData);
             notification.success({
                 message: 'Combo creado',
                 description: `El combo "${values.nombre}" ha sido creado exitosamente`,
@@ -283,7 +283,7 @@ export default function AgregarCombo() {
                                         <label className="form-label">Cantidad</label>
                                         <InputNumber
                                             min={1}
-                                            max={10}
+                                            max={100}
                                             value={cantidad}
                                             onChange={setCantidad}
                                             className="w-100"
