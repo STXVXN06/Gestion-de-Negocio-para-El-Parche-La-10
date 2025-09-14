@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, Drawer, Button, ConfigProvider, Dropdown, Avatar } from 'antd';
+import { Menu, Drawer, Button, ConfigProvider, Dropdown, Avatar, Badge } from 'antd';
+import { hayPedidoEnCurso as hayPedidoEnStorage, limpiarPedidoEnCurso } from '../utils/PedidoStorage';
 import {
   HomeOutlined,
   ShoppingCartOutlined,
@@ -10,7 +11,9 @@ import {
   LineChartOutlined,
   MenuOutlined,
   UserOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  ShopOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import './Navegacion.css';
 
@@ -20,14 +23,71 @@ export default function Navegacion({ setIsAuthenticated }) {
   const [visible, setVisible] = useState(false);
   const username = localStorage.getItem('username') || 'Usuario';
   const roles = JSON.parse(localStorage.getItem('roles') || '[]');
-  const isEmpleado = roles.includes('ROLE_EMPLEADO');
+  const isAdmin = roles.includes('ROLE_ADMIN');
+  const [tienePedidoEnCurso, setTienePedidoEnCurso] = useState(false);
+
+  /// Actualizar el useEffect
+  useEffect(() => {
+    const verificarPedidoEnCurso = () => {
+      setTienePedidoEnCurso(hayPedidoEnStorage());
+    };
+
+    verificarPedidoEnCurso();
+
+    // Escuchar cambios en el almacenamiento local
+    const handleStorageChange = () => {
+      verificarPedidoEnCurso();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // También verificar periódicamente por cambios (para la misma pestaña)
+    const interval = setInterval(verificarPedidoEnCurso, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Función para manejar clic en "Nuevo Pedido"
+  const handleNuevoPedido = () => {
+    // Limpiar cualquier estado previo de pedido
+    limpiarPedidoEnCurso();
+    // Navegar con estado que indique que es un nuevo pedido
+    navigate('/pedidos-mobile/agregarPedido', {
+      state: { nuevoPedido: true },
+      replace: true
+    });
+    setVisible(false);
+  };
 
   // Definir items basados en el rol del usuario
   const getMenuItems = () => {
-    if (isEmpleado) {
-      return [
-        { key: '/pedidos-mobile', label: 'Pedidos', icon: <ShoppingCartOutlined /> }
+    if (!isAdmin) {
+      const itemsEmpleado = [
+        { key: '/pedidos-mobile', label: 'Pedidos', icon: <ShoppingCartOutlined /> },
+        { key: '/mobile/inventario', label: 'Inventario', icon: <ShopOutlined /> }
       ];
+
+      // Si hay un pedido en curso, agregar opción para continuar
+      if ((tienePedidoEnCurso)) {
+        itemsEmpleado.unshift({
+          key: '/pedidos-mobile/agregarPedido',
+          label: 'Continuar Pedido',
+          icon: <Badge dot><ShoppingCartOutlined /></Badge>,
+          className: 'continue-order-item'
+        });
+      } else {
+        itemsEmpleado.unshift({
+          key: '/pedidos-mobile/agregarPedido',
+          label: 'Nuevo Pedido',
+          icon: <PlusOutlined />,
+          onClick: handleNuevoPedido
+        });
+      }
+
+      return itemsEmpleado;
     }
 
     return [
@@ -38,16 +98,16 @@ export default function Navegacion({ setIsAuthenticated }) {
       { key: '/combos', label: 'Combos', icon: <AppstoreOutlined /> },
       { key: '/compras', label: 'Compras', icon: <DollarOutlined /> },
       { key: '/registroDesperdicios', label: 'Desperdicios', icon: <LineChartOutlined /> },
-      { key: '/movimientosCaja', label: 'Caja', icon: <DollarOutlined /> }
+      { key: '/movimientosCaja', label: 'Caja', icon: <DollarOutlined /> },
+      { key: '/usuarios', label: 'Usuarios', icon: <UserOutlined />}
     ];
   };
-
-  const items = getMenuItems();
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     localStorage.removeItem('roles');
+    limpiarPedidoEnCurso();
     setIsAuthenticated(false);
     navigate('/login');
   };
@@ -69,6 +129,35 @@ export default function Navegacion({ setIsAuthenticated }) {
     </Menu>
   );
 
+  // Función para renderizar items del menú
+  const renderMenuItems = () => {
+    const items = getMenuItems();
+    return items.map(item => {
+      const itemProps = {
+        key: item.key,
+        icon: React.cloneElement(item.icon, { style: { fontSize: '18px' } }),
+        className: item.className || ''
+      };
+
+      // Si tiene un onClick personalizado, usarlo, de lo contrario usar Link normal
+      if (item.onClick) {
+        return {
+          ...itemProps,
+          label: (
+            <span onClick={item.onClick} style={{ cursor: 'pointer' }}>
+              {item.label}
+            </span>
+          )
+        };
+      } else {
+        return {
+          ...itemProps,
+          label: <Link to={item.key}>{item.label}</Link>
+        };
+      }
+    });
+  };
+
   const menu = (
     <ConfigProvider
       theme={{
@@ -86,11 +175,7 @@ export default function Navegacion({ setIsAuthenticated }) {
       <Menu
         mode="horizontal"
         selectedKeys={[location.pathname]}
-        items={items.map(item => ({
-          key: item.key,
-          icon: React.cloneElement(item.icon, { style: { fontSize: '18px' } }),
-          label: <Link to={item.key}>{item.label}</Link>
-        }))}
+        items={renderMenuItems()}
         className="desktop-menu"
       />
     </ConfigProvider>
@@ -101,7 +186,7 @@ export default function Navegacion({ setIsAuthenticated }) {
       <div className="nav-bar">
         {/* Redirigir a la página principal según el rol */}
         <Link
-          to={isEmpleado ? "/pedidos-mobile" : "/reportes"}
+          to={isAdmin ? "/" :  "/pedidos-mobile" }
           className="nav-brand"
         >
           <span className="gradient-text">ParcheLa10</span>
@@ -174,10 +259,17 @@ export default function Navegacion({ setIsAuthenticated }) {
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
-            items={items.map(item => ({
-              key: item.key,
-              icon: React.cloneElement(item.icon, { style: { fontSize: '18px' } }),
-              label: <Link to={item.key} onClick={() => setVisible(false)}>{item.label}</Link>
+            items={renderMenuItems().map(item => ({
+              ...item,
+              label: item.key === '/pedidos-mobile/agregarPedido' && item.onClick ? (
+                <span onClick={() => { item.onClick(); setVisible(false); }} style={{ cursor: 'pointer' }}>
+                  {item.label}
+                </span>
+              ) : (
+                <Link to={item.key} onClick={() => setVisible(false)}>
+                  {item.label}
+                </Link>
+              )
             }))}
           />
         </ConfigProvider>

@@ -6,7 +6,7 @@ import './ModalCompra.css';
 import api from '../api';
 
 const ModalCompra = ({ show, handleClose, tipos, ingredientes, onSave }) => {
-  const urlBase = 'http://localhost:9090/api/compras';
+  const urlBase = '/api/compras';
   const [formData, setFormData] = useState({
     tipo: 'INGREDIENTE',
     ingredienteId: '',

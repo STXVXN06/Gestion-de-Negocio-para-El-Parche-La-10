@@ -1,0 +1,172 @@
+.stock-view-container {
+  padding: 16px;
+  max-width: 100%;
+  margin: 0 auto;
+}
+.stock-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.stock-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.stock-header h2 {
+  margin-bottom: 5px;
+  font-size: 1.5rem;
+  
+
+}
+
+.stock-header p {
+  color: #666;
+  margin: 0;
+}
+
+.search-container {
+  margin-bottom: 20px;
+}
+
+.search-input .ant-input-group-addon button {
+  border-radius: 0 6px 6px 0;
+}
+
+.ingredient-card {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.ingredient-card .card-content {
+  padding: 5px 0;
+}
+
+.ingredient-info {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.ingredient-name {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.ingredient-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.quantity {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.status-tag {
+  margin: 0;
+  font-size: 12px;
+  border: none;
+  border-radius: 12px;
+}
+
+.min-quantity {
+  margin-top: 5px;
+}
+
+.min-quantity-text {
+  font-size: 13px;
+}
+
+.no-results {
+  text-align: center;
+  padding: 40px 0;
+  color: #999;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.loading-spinner p {
+  margin-top: 15px;
+  color: #666;
+}
+
+.stock-summary {
+  margin-top: 25px;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Media queries para ajustes específicos en móviles */
+@media (max-width: 480px) {
+  .stock-view-container {
+    padding: 12px;
+  }
+  
+  .ingredient-name {
+    font-size: 15px;
+  }
+  
+  .quantity {
+    font-size: 14px;
+  }
+  
+  .status-tag {
+    font-size: 11px;
+  }
+}
+
+/* Estilo para el elemento de continuar pedido */
+.continue-order-item {
+  background-color: rgba(46, 204, 113, 0.2) !important;
+  border-radius: 4px;
+}
+
+.continue-order-item .ant-menu-title-content {
+  font-weight: bold;
+}
+
+.continue-order-item:hover {
+  background-color: rgba(46, 204, 113, 0.3) !important;
+}
+
+/* Ajustes para el badge en el ícono */
+.ant-badge-dot {
+  box-shadow: 0 0 0 2px #1890ff;
+}
+
+/* Ajustes responsivos */
+@media (max-width: 768px) {
+  .desktop-menu-container {
+    display: none;
+  }
+  
+  .nav-brand {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-button {
+    display: none;
+  }
+}

@@ -588,3 +588,18 @@
   font-weight: bold;
   margin-left: 10px;
 }
+
+.notification-alert {
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  color: #52c41a;
+  display: inline-flex;
+  align-items: center;
+}
+
+.notification-alert .anticon {
+  margin-right: 8px;
+}

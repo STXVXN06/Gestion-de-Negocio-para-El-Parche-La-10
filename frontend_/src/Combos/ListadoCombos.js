@@ -32,7 +32,7 @@ export default function ListadoCombos() {
     const fetchCombos = async () => {
         try {
             setLoading(true);
-            const response = await api.get('http://localhost:9090/api/combos');
+            const response = await api.get('/api/combos');
 
             // Verificar si la respuesta es un mensaje de texto
             if (typeof response.data === 'string') {
@@ -56,7 +56,7 @@ export default function ListadoCombos() {
 
     const handleDelete = async () => {
         try {
-            await api.delete(`http://localhost:9090/api/combos/${comboToDelete.id}`);
+            await api.delete(`/api/combos/${comboToDelete.id}`);
             notification.success({
                 message: 'Combo desactivado',
                 description: 'El combo ha sido desactivado correctamente.',

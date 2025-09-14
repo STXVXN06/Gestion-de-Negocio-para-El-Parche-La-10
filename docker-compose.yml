@@ -16,7 +16,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,6 +52,24 @@ services:
     container_name: adminer
     ports:
       - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  backup:
+    image: alpine:3.14
+    container_name: backup
+    volumes:
+      - ./backup.sh:/backup.sh
+      - ./backups:/backups
+    entrypoint: |
+      sh -c "
+        apk update && apk add mysql-client && \
+        chmod +x /backup.sh && \
+        echo '0 2 * * * /backup.sh' > /etc/crontabs/root && \
+        crond -f
+      "
     depends_on:
       - db
     networks:

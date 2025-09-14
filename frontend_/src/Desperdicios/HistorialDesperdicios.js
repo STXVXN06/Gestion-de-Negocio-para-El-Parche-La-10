@@ -14,7 +14,7 @@ export default function HistorialDesperdicios() {
 
   const cargarHistorial = async () => {
     try {
-      const response = await api.get('http://localhost:9090/api/desperdicios');
+      const response = await api.get('/api/desperdicios');
       setDesperdicios(response.data);
     } catch (error) {
       console.error('Error cargando historial:', error);

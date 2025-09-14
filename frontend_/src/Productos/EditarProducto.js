@@ -39,7 +39,7 @@ const onSubmit = async (e) => {
             }))
     };
 
-    await api.put(`http://localhost:9090/api/productos/${id}`, dto);
+    await api.put(`/api/productos/${id}`, dto);
     Navegacion('/productos');
 };
 
@@ -47,13 +47,13 @@ useEffect(() => {
     const cargarDatos = async () => {
         try {
             // 1. Cargar ingredientes disponibles primero
-            const ingredientesResponse = await api.get('http://localhost:9090/api/ingredientes');
+            const ingredientesResponse = await api.get('/api/ingredientes');
             setIngredientesDisponibles(ingredientesResponse.data);
 
             // 2. Si hay ID, cargar producto e ingredientes
             if (id) {
-                const productoResponse = await api.get(`http://localhost:9090/api/productos/${id}`);
-                const ingredientesProductoResponse = await api.get(`http://localhost:9090/api/productos/${id}/ingredientes`);
+                const productoResponse = await api.get(`/api/productos/${id}`);
+                const ingredientesProductoResponse = await api.get(`/api/productos/${id}/ingredientes`);
                 
                 // 3. Mapear ingredientes correctamente
                 const ingredientesMapeados = ingredientesProductoResponse.data.ingredientes.map(pi => ({

@@ -1,0 +1,409 @@
+.listado-container-empleado {
+    padding: 16px;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+  
+  .page-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .page-header h1 {
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    font-size: 1.5rem;
+  }
+  
+  .page-header p {
+    color: #7f8c8d;
+    font-size: 14px;
+  }
+  
+  /* Filtros */
+  .filter-card {
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .filter-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .filter-section h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 14px;
+  }
+  
+  .date-range-picker, .filter-section .ant-select {
+    width: 100%;
+  }
+  
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+  
+  /* Tabs */
+  .estado-tabs .ant-tabs-nav {
+    margin-bottom: 15px;
+  }
+  
+  .estado-tabs .ant-tabs-tab {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  /* Tarjeta de pedido */
+  .pedido-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+  }
+  
+  .pedido-header {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .tags-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .pedido-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .pedido-icon {
+    font-size: 20px;
+  }
+  
+  .pedido-id {
+    font-weight: 700;
+    font-size: 16px;
+    color: #2c3e50;
+  }
+  
+  .pedido-fecha {
+    font-size: 12px;
+    color: #7f8c8d;
+    display: flex;
+    align-items: center;
+  }
+  
+  .estado-tag,
+  .domicilio-tag {
+    padding: 4px 8px;
+    font-weight: 600;
+    border-radius: 20px;
+    font-size: 12px;
+  }
+  
+  .pedido-body {
+    padding: 0 16px;
+  }
+  
+  .pedido-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #2c3e50;
+    padding: 0 8px;
+  }
+  
+  .total-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+  }
+  
+  .detalles-container {
+    margin-top: 15px;
+  }
+  
+  .detalles-btn {
+    width: 100%;
+    text-align: left;
+    font-weight: 600;
+    color: #3498db;
+    padding: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(52, 152, 219, 0.05);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  
+  .detalles-expandidos {
+    margin-top: 15px;
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #f0f0f0;
+  }
+  
+  .section-title {
+    font-weight: 600;
+    margin: 15px 0 10px;
+    color: #555;
+    font-size: 14px;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed #eee;
+  }
+  
+  .section-title:first-child {
+    margin-top: 0;
+  }
+  
+  .product-list,
+  .combo-list,
+  .desechables-list {
+    margin-bottom: 10px;
+  }
+  
+  .product-item,
+  .combo-item,
+  .desechable-item,
+  .adicion-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 14px;
+  }
+  
+  .product-item:last-child,
+  .combo-item:last-child,
+  .desechable-item:last-child,
+  .adicion-item:last-child {
+    border-bottom: none;
+  }
+  
+  .product-info,
+  .combo-info,
+  .adicion-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .product-quantity,
+  .combo-quantity,
+  .adicion-quantity {
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 24px;
+  }
+  
+  .product-name,
+  .combo-name,
+  .adicion-name {
+    color: #333;
+    font-weight: 500;
+  }
+  
+  .product-subtotal,
+  .combo-subtotal,
+  .desechable-subtotal,
+  .adicion-subtotal {
+    font-weight: 600;
+    color: #222;
+    text-align: right;
+  }
+  
+  .adicion-aplicado {
+    font-size: 12px;
+    color: #7f8c8d;
+    font-style: italic;
+  }
+  
+  .adicion-precio-unitario {
+    font-size: 11px;
+    color: #95a5a6;
+    display: block;
+  }
+  
+  .domicilio-info {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    align-items: center;
+  }
+  
+  .domicilio-cost {
+    font-weight: 600;
+    color: #222;
+  }
+  
+  .detalles-adicionales p {
+    color: #34495e;
+    margin: 0;
+    padding: 8px 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .metodo-pago {
+    margin-top: 15px;
+  }
+  
+  .pago-tag {
+    padding: 6px 12px;
+    font-weight: 600;
+    border-radius: 20px;
+    font-size: 14px;
+  }
+  
+  /* Estado vacío */
+  .empty-card {
+    border-radius: 12px;
+    text-align: center;
+    padding: 40px 20px;
+  }
+  
+  .loading-container {
+    text-align: center;
+    padding: 50px 0;
+  }
+  
+  /* Footer con botones */
+  .pedido-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .action-buttons-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  
+  .action-btn {
+    min-width: 120px;
+  }
+  
+  /* Responsive para pantallas pequeñas */
+  @media (max-width: 576px) {
+    .listado-container-empleado {
+      padding: 12px;
+    }
+    
+    .page-header h1 {
+      font-size: 1.3rem;
+    }
+    
+    .action-buttons {
+      flex-direction: column;
+    }
+    
+    .action-buttons .ant-btn {
+      width: 100%;
+    }
+    
+    .action-buttons-footer {
+      flex-direction: column;
+    }
+    
+    .action-btn {
+      width: 100%;
+    }
+    
+    .estado-tabs .ant-tabs-nav {
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+  }
+  
+  /* Ajustes para modo landscape en móviles */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .listado-container-empleado {
+      padding: 8px;
+    }
+    
+    .pedido-card {
+      margin-bottom: 12px;
+    }
+    
+    .pedido-header,
+    .pedido-body,
+    .pedido-footer {
+      padding: 12px;
+    }
+  }
+  
+  /* Mejorar visualización de detalles */
+  .detalles-expandidos .product-item,
+  .detalles-expandidos .combo-item,
+  .detalles-expandidos .desechable-item,
+  .detalles-expandidos .adicion-item {
+    font-size: 13px;
+    padding: 6px 0;
+  }
+  
+  .detalles-expandidos .product-name,
+  .detalles-expandidos .combo-name {
+    font-weight: 500;
+  }
+  
+  /* Ajustar formato monetario para móviles */
+  .total-value,
+  .product-subtotal,
+  .combo-subtotal,
+  .desechable-subtotal,
+  .adicion-subtotal,
+  .domicilio-cost {
+    font-size: 14px;
+  }
+  
+  /* Mejorar la experiencia táctil */
+  .ant-btn,
+  .ant-tag,
+  .ant-select-selector {
+    touch-action: manipulation;
+  }
+  
+  /* Asegurar que los textos no se desborden */
+  .pedido-id,
+  .product-name,
+  .combo-name,
+  .adicion-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+  }
+  
+  @media (max-width: 340px) {
+    .pedido-id,
+    .product-name,
+    .combo-name,
+    .adicion-name {
+      max-width: 140px;
+    }
+  }

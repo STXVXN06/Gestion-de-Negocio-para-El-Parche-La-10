@@ -9,7 +9,7 @@ const { Column } = Table;
 const { RangePicker } = DatePicker;
 
 export default function ListadoCompras() {
-  const urlBase = 'http://localhost:9090/api/compras';
+  const urlBase = '/api/compras';
   const [compras, setCompras] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [tiposCompra] = useState(['INGREDIENTE', 'ASEO', 'MATERIALES', 'UTENSILIOS', 'OTROS']);
@@ -28,7 +28,7 @@ export default function ListadoCompras() {
   };
 
   const cargarIngredientes = async () => {
-    const resultado = await api.get('http://localhost:9090/api/ingredientes');
+    const resultado = await api.get('/api/ingredientes');
     setIngredientes(resultado.data);
   };
 

@@ -10,17 +10,17 @@ import com.stxvxn.parchela10.DTO.ProductoVentaDTO;
 
 public interface IReporteService {
 
-    public Long calcularGanancias(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    Long calcularGanancias(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 
-    public Long calcularIngresos(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    Long calcularIngresos(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 
-    public Long calcularEgresos(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    Long calcularEgresos(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 
-    public List<ProductoVentaDTO> obtenerProductosMasVendidos(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    List<ProductoVentaDTO> obtenerProductosMasVendidos(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 
-    public List<IngredienteUsoDTO> obtenerIngredientesUtilizados(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    List<IngredienteUsoDTO> obtenerIngredientesUtilizados(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 
-    public List<AdicionReporteDTO> obtenerAdicionesIngredientes(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    List<AdicionReporteDTO> obtenerAdicionesIngredientes(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 
-    public List<DesperdicioReporteDTO> obtenerDesperdicios(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    List<DesperdicioReporteDTO> obtenerDesperdicios(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 }

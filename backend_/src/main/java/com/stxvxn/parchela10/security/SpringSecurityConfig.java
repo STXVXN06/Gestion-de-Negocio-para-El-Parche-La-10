@@ -60,6 +60,7 @@ public class SpringSecurityConfig {
                             .map(role -> role.getName().replace("ROLE_", ""))
                             .toArray(String[]::new);
                     authz.requestMatchers(HttpMethod.valueOf(route.getMethod()), route.getPath()).hasAnyRole(roles);
+                    authz.requestMatchers("/ws/**").authenticated();
                 }
 
             }

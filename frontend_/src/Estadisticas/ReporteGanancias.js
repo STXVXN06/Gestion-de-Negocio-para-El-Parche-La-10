@@ -9,7 +9,7 @@ import { format, subYears, addYears, startOfDay, endOfDay } from 'date-fns';
 import './Reporte.css';
 import api from '../api';
 
-const API_BASE_URL = 'http://localhost:9090/api';
+const API_BASE_URL = '/api';
 
 const ReporteGanancias = () => {
   const [ganancias, setGanancias] = useState(0);

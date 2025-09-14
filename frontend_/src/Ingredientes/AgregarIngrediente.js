@@ -25,7 +25,7 @@ export default function AgregarIngrediente() {
   const [unidadesMedida, setUnidadesMedida] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const urlUnidades = 'http://localhost:9090/api/unidadesMedida';
+  const urlUnidades = '/api/unidadesMedida';
 
   const onFinish = async (values) => {
     setLoading(true);
@@ -36,7 +36,7 @@ export default function AgregarIngrediente() {
         precioAdicion: values.adicionable ? values.precioAdicion : null
       };
       
-      await api.post('http://localhost:9090/api/ingredientes', ingredienteParaEnviar);
+      await api.post('/api/ingredientes', ingredienteParaEnviar);
       form.resetFields();
       navigate('/ingredientes');
     } catch (error) {

@@ -35,7 +35,7 @@ export default function AgregarProducto() {
         };
 
         try {
-            await api.post('http://localhost:9090/api/productos', productoParaEnviar);
+            await api.post('/api/productos', productoParaEnviar);
             navigate('/productos');
         } catch (error) {
             console.error("Error creando producto:", error);
@@ -48,7 +48,7 @@ export default function AgregarProducto() {
 
     const cargarIngredientes = async () => {
         try {
-            const response = await api.get('http://localhost:9090/api/ingredientes');
+            const response = await api.get('/api/ingredientes');
             setIngredientesDisponibles(response.data);
         } catch (error) {
             console.error("Error cargando ingredientes:", error);

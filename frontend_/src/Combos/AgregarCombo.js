@@ -29,7 +29,7 @@ export default function AgregarCombo() {
     useEffect(() => {
         const fetchProductos = async () => {
             try {
-                const response = await api.get('http://localhost:9090/api/productos');
+                const response = await api.get('/api/productos');
                 setProductos(response.data);
                 setLoading(false);
             } catch (error) {
@@ -110,7 +110,7 @@ export default function AgregarCombo() {
         };
 
         try {
-            await api.post('http://localhost:9090/api/combos', comboData);
+            await api.post('/api/combos', comboData);
             notification.success({
                 message: 'Combo creado',
                 description: `El combo "${values.nombre}" ha sido creado exitosamente`,

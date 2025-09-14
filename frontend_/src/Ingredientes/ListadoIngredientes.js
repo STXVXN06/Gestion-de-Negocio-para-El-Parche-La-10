@@ -1,4 +1,3 @@
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Input, Space, Modal, Typography } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -9,10 +8,11 @@ const { Search } = Input;
 const { Text } = Typography;
 
 export default function ListadoIngredientes() {
-  const urlBase = 'http://localhost:9090/api/ingredientes';
+  const urlBase = '/api/ingredientes';
   const [ingredientes, setIngredientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(false);
+  
 
   useEffect(() => {
     cargarIngredientes();
@@ -39,7 +39,7 @@ export default function ListadoIngredientes() {
       cancelText: 'Cancelar',
       onOk: async () => {
         try {
-          await axios.delete(`${urlBase}/${id}`);
+          await api.delete(`${urlBase}/${id}`);
           cargarIngredientes();
         } catch (error) {
           console.error("Error eliminando ingrediente:", error);

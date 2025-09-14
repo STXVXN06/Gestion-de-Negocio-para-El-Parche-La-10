@@ -19,7 +19,7 @@ const Login = ({setIsAuthenticated}) => {
         setError('');
 
         try {
-            const response = await api.post('http://localhost:9090/login', {
+            const response = await api.post('/login', {
                 username,
                 password
             });
@@ -33,11 +33,13 @@ const Login = ({setIsAuthenticated}) => {
                 localStorage.setItem('roles', JSON.stringify(response.data.roles));
                 setIsAuthenticated(true);
                 // Redirigir según rol
-                if (response.data.roles.includes('ROLE_EMPLEADO')) {
-                    navigate('/pedidos-mobile');
-                } else {
+                if (response.data.roles.includes('ROLE_ADMIN')) {
                     navigate('/');
+                } else{
+                    if (response.data.roles.includes('ROLE_EMPLEADO')){
+                    navigate('/pedidos-mobile');
                 }
+            }
             }
         } catch (err) {
             setError('Credenciales incorrectas o usuario no autorizado');

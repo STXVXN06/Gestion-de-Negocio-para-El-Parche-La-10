@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import moment from 'moment';
 import api from '../api';
 
-const API_BASE_URL = 'http://localhost:9090/api';
+const API_BASE_URL = '/api';
 
 
 const ListaCompras = () => {

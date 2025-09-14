@@ -18,8 +18,8 @@ export default function RegistroDesperdicios() {
 
   const cargarDatosIniciales = async () => {
     const [prodRes, ingRes] = await Promise.all([
-      api.get('http://localhost:9090/api/productos'),
-      api.get('http://localhost:9090/api/ingredientes')
+      api.get('/api/productos'),
+      api.get('/api/ingredientes')
     ]);
     setProductos(prodRes.data);
     setIngredientes(ingRes.data);
@@ -72,7 +72,7 @@ export default function RegistroDesperdicios() {
         }
       });
 
-      const response = await api.post('http://localhost:9090/api/desperdicios', desperdicios);
+      const response = await api.post('/api/desperdicios', desperdicios);
       alert('Desperdicios registrados correctamente!');
       resetEstado();
     } catch (error) {

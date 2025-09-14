@@ -33,9 +33,9 @@ export default function AgregarPedido() {
     const cargarDatos = async () => {
       try {
         const [productosResponse, combosResponse, ingredientesResponse] = await Promise.all([
-          api.get('http://localhost:9090/api/productos'),
-          api.get('http://localhost:9090/api/combos'),
-          api.get('http://localhost:9090/api/ingredientes')
+          api.get('/api/productos'),
+          api.get('/api/combos'),
+          api.get('/api/ingredientes')
         ]);
 
         setProductosDisponibles(productosResponse.data.filter(p => p.activo));
@@ -180,7 +180,7 @@ export default function AgregarPedido() {
     };
 
     try {
-      await api.post('http://localhost:9090/api/pedidos', pedidoDTO);
+      await api.post('/api/pedidos', pedidoDTO);
       navigate('/pedidos');
     } catch (error) {
       if (error.response?.data?.detalles) {

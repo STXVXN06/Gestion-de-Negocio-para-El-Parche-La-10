@@ -50,6 +50,7 @@ import com.stxvxn.parchela10.servicios.PedidoProductoServiceImpl;
 import com.stxvxn.parchela10.servicios.PedidoServiceImpl;
 import com.stxvxn.parchela10.servicios.ProductoIngredienteServiceImpl;
 import com.stxvxn.parchela10.servicios.ProductoServiceImpl;
+import com.stxvxn.parchela10.servicios.WebSocketService;
 
 @RestController
 @CrossOrigin(value = "http://localhost:3000")
@@ -82,6 +83,9 @@ public class PedidoController {
 
     @Autowired
     private EmailServiceImpl emailService;
+
+    @Autowired
+    private WebSocketService webSocketService;
 
     @PostMapping
     public ResponseEntity<?> crearPedido(@RequestBody PedidoRequestDTO pedidoDTO) {
@@ -217,6 +221,7 @@ public class PedidoController {
 
         Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos, pedidoCombos);
         if (pedidoCreado.isPresent()) {
+            webSocketService.enviarNotificacionNuevoPedido();
             return ResponseEntity.ok().body(pedidoCreado.orElseThrow());
         }
         return ResponseEntity.notFound().build();

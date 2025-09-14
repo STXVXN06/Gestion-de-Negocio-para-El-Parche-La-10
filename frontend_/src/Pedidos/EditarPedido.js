@@ -48,7 +48,7 @@ export default function EditarPedido() {
         cargarDatosIniciales();
         const cargarStockDesechables = async () => {
             try {
-                const res = await api.get('http://localhost:9090/api/ingredientes');
+                const res = await api.get('/api/ingredientes');
                 const ingredientes = res.data;
 
                 setStockDesechables({
@@ -67,10 +67,10 @@ export default function EditarPedido() {
         try {
             setLoading(true);
             const [pedidoRes, productosRes, combosRes, ingredientesRes] = await Promise.all([
-                api.get(`http://localhost:9090/api/pedidos/${id}`),
-                api.get('http://localhost:9090/api/productos'),
-                api.get('http://localhost:9090/api/combos'),
-                api.get('http://localhost:9090/api/ingredientes')
+                api.get(`/api/pedidos/${id}`),
+                api.get('/api/productos'),
+                api.get('/api/combos'),
+                api.get('/api/ingredientes')
             ]);
 
             // Filtrar ingredientes adicionables
@@ -327,7 +327,7 @@ export default function EditarPedido() {
 
             // Enviar actualización
             const { data } = await api.put(
-                `http://localhost:9090/api/pedidos/${id}/productos`,
+                `/api/pedidos/${id}/productos`,
                 payload,
                 { headers: { 'Content-Type': 'application/json' } }
             );

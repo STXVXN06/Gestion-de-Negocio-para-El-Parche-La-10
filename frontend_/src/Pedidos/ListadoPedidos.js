@@ -34,13 +34,16 @@ import {
   CheckCircleFilled,
   CloseCircleFilled,
   ExclamationCircleOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  BellOutlined
 } from '@ant-design/icons';
 import { parseISO } from 'date-fns'; // Eliminada importación innecesaria de 'es'
 import { NumericFormat } from 'react-number-format';
 import './ListadoPedidos.css';
 import api from '../api';
 import moment from 'moment';
+import useWebSocket from '../hooks/UseWebSocket';
+import notificationSound from '../assets/notificacion.mp3';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -48,7 +51,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ListadoPedidos() {
   const navigate = useNavigate();
-  const urlBase = 'http://localhost:9090/api/pedidos';
+  const urlBase = '/api/pedidos';
   const [todosPedidos, setTodosPedidos] = useState([]);
   const [filtroFecha, setFiltroFecha] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('todos');
@@ -73,9 +76,40 @@ export default function ListadoPedidos() {
   const [modalEfectivoVisible, setModalEfectivoVisible] = useState(false);
   const [montoRecibido, setMontoRecibido] = useState('');
   const { RangePicker } = DatePicker;
+  const [nuevosPedidos, setNuevosPedidos] = useState(0);
+  const [showNotificationBadge, setShowNotificationBadge] = useState(false);
 
-  // CORRECCIÓN: Estado para pedido a cancelar
   const [pedidoACancelar, setPedidoACancelar] = useState(null);
+
+  const handleWebSocketMessage = useCallback((message) => {
+    if (message.tipo === 'NUEVO_PEDIDO') {
+      // Reproducir sonido de notificación
+      const audio = new Audio(notificationSound);
+      audio.play().catch(e => console.error("Error reproduciendo sonido:", e));
+
+      // Mostrar notificación visual
+      notification.info({
+        message: 'Nuevo Pedido',
+        description: message.mensaje,
+        duration: 5,
+        placement: 'topRight',
+        icon: <BellOutlined style={{ color: '#108ee9' }} />,
+      });
+
+      // Incrementar contador y mostrar badge
+      setNuevosPedidos(prev => prev + 1);
+      setShowNotificationBadge(true);
+
+      // Recargar pedidos después de un breve delay
+      setTimeout(() => {
+        cargarPedidos();
+      }, 1000);
+    }
+  }, []);
+
+
+  useWebSocket(handleWebSocketMessage);
+
 
   // CORRECCIÓN: Usar useCallback para resolver dependencia de useEffect
   const cargarPedidos = useCallback(async () => {
@@ -94,15 +128,12 @@ export default function ListadoPedidos() {
     }
   }, []);
 
-  const vuelto = useMemo(() => {
-    if (!pedidoSeleccionado || !montoRecibido) return 0;
-    return parseFloat(montoRecibido) - pedidoSeleccionado.total;
-  }, [pedidoSeleccionado, montoRecibido]);
-
   useEffect(() => {
     cargarPedidos();
 
   }, [cargarPedidos]); // CORRECCIÓN: Añadida dependencia
+
+
 
   useEffect(() => {
     if (todosPedidos.length > 0) {
@@ -113,6 +144,13 @@ export default function ListadoPedidos() {
       setEstadisticas({ entregados, pendientes, cancelados });
     }
   }, [todosPedidos]);
+
+
+  const vuelto = useMemo(() => {
+    if (!pedidoSeleccionado || !montoRecibido) return 0;
+    return parseFloat(montoRecibido) - pedidoSeleccionado.total;
+  }, [pedidoSeleccionado, montoRecibido]);
+
 
   const pedidosFiltrados = useMemo(() => {
     return todosPedidos.filter(pedido => {
@@ -176,6 +214,12 @@ export default function ListadoPedidos() {
     } finally {
       setModalVisible(false);
     }
+  };
+
+  const handleActualizarClick = () => {
+    cargarPedidos();
+    setNuevosPedidos(0);
+    setShowNotificationBadge(false);
   };
 
   const abrirModalEntrega = (pedido) => {
@@ -455,10 +499,10 @@ export default function ListadoPedidos() {
         <div className="action-buttons">
           <Button
             type="default"
-            onClick={cargarPedidos}
+            onClick={handleActualizarClick}
             icon={<ReloadOutlined />}
           >
-            Actualizar
+            Actualizar {showNotificationBadge && <Badge count={nuevosPedidos} />}
           </Button>
 
           <Link to="/agregarPedido">
@@ -652,6 +696,11 @@ export default function ListadoPedidos() {
       <div className="page-header">
         <h1>Listado de Pedidos</h1>
         <p>Administra todos los pedidos de tu restaurante</p>
+        {showNotificationBadge && (
+          <div className="notification-alert">
+            <BellOutlined /> Tienes {nuevosPedidos} nuevo(s) pedido(s)
+          </div>
+        )}
       </div>
 
       {renderFiltros()}

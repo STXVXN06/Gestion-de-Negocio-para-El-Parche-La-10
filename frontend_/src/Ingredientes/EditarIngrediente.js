@@ -32,8 +32,8 @@ export default function EditarIngrediente() {
   // Observa cambios en el campo 'adicionable'
   const adicionable = Form.useWatch('adicionable', form);
 
-  const urlBase = 'http://localhost:9090/api/ingredientes';
-  const urlUnidades = 'http://localhost:9090/api/unidadesMedida';
+  const urlBase = '/api/ingredientes';
+  const urlUnidades = '/api/unidadesMedida';
 
   const onFinish = async (values) => {
     setLoading(true);

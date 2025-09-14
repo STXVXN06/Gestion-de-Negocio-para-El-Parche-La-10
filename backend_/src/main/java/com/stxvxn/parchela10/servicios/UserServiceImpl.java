@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.stxvxn.parchela10.DTO.RegistroUsuarioDTO;
 import com.stxvxn.parchela10.entidades.Role;
 import com.stxvxn.parchela10.entidades.User;
 import com.stxvxn.parchela10.repositorios.RoleRepository;
@@ -38,9 +39,12 @@ public class UserServiceImpl implements IUserService {
     public User save(User user) {
 
         Optional<Role> optionalRoleUser = roleRepository.findByName("ROLE_USER");
+        Optional<Role> optionalRoleEmpleado = roleRepository.findByName("ROLE_EMPLEADO");
+
         List<Role> roles = new ArrayList<>();
 
         optionalRoleUser.ifPresent(roles::add);
+        optionalRoleEmpleado.ifPresent(roles::add);
 
         if (user.isAdmin()) {
             Optional<Role> optionalRoleAdmin = roleRepository.findByName("ROLE_ADMIN");
@@ -58,6 +62,14 @@ public class UserServiceImpl implements IUserService {
     @Transactional(readOnly = true)
     public boolean ExistsByUsername(String username) {
         return userRepository.existsByUsername(username);
+
+    }
+
+    @Override
+    public Optional<User> delete(Long id) {
+        Optional<User> userOptional = userRepository.findById(id);
+        userOptional.ifPresent(user -> userRepository.delete(user));
+        return userOptional;
 
     }
 

@@ -13,7 +13,7 @@ const { Column } = Table;
 const { Search } = Input;
 
 export default function ListadoProductos() {
-  const urlBase = 'http://localhost:9090/api/productos';
+  const urlBase = '/api/productos';
   const [productos, setProductos] = useState([]);
   const [filtro, setFiltro] = useState('todos');
   const [busqueda, setBusqueda] = useState('');

@@ -5,6 +5,20 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './app.css'; 
 
 
+// Desregistrar Service Worker si existe
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for(let registration of registrations) {
+      registration.unregister().then(() => {
+        console.log('Service Worker desregistrado exitosamente');
+      }).catch(error => {
+        console.error('Error desregistrando Service Worker:', error);
+      });
+    }
+  }).catch(error => {
+    console.error('Error obteniendo registrations:', error);
+  });
+}
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

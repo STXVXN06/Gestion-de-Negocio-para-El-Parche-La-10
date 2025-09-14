@@ -57,12 +57,12 @@ export default function EditarCombo() {
                 setLoading(true);
 
                 // Obtener combo
-                const comboResponse = await api.get(`http://localhost:9090/api/combos/${id}`);
+                const comboResponse = await api.get(`/api/combos/${id}`);
                 const comboData = comboResponse.data;
                 setCombo(comboData);
 
                 // Obtener productos disponibles
-                const productosResponse = await api.get('http://localhost:9090/api/productos');
+                const productosResponse = await api.get('/api/productos');
                 setProductos(productosResponse.data);
 
                 // Transformar productos del combo al formato necesario
@@ -155,7 +155,7 @@ export default function EditarCombo() {
         };
 
         try {
-            await api.put(`http://localhost:9090/api/combos/${id}`, comboData);
+            await api.put(`/api/combos/${id}`, comboData);
             notification.success({
                 message: 'Combo actualizado',
                 description: `El combo "${values.nombre}" ha sido actualizado exitosamente`,

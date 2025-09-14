@@ -24,7 +24,7 @@ export default function ListadoMovimientosCaja() {
 
   const cargarMovimientos = async () => {
     try {
-      const response = await api.get('http://localhost:9090/api/movimientosCaja');
+      const response = await api.get('/api/movimientosCaja');
       const datosOrdenados = response.data.sort((a, b) =>
         new Date(b.fecha) - new Date(a.fecha)
       );
@@ -36,7 +36,7 @@ export default function ListadoMovimientosCaja() {
 
   const cargarCaja = async () => {
     try {
-      const response = await api.get('http://localhost:9090/api/caja');
+      const response = await api.get('/api/caja');
       console.log(response.data);
       setMontoCaja(response.data.montoActual);
     } catch (error) {
@@ -48,7 +48,7 @@ export default function ListadoMovimientosCaja() {
     if (window.confirm('¿Está seguro de que desea anular este movimiento?')) {
       try {
 
-        await api.put(`http://localhost:9090/api/movimientosCaja/${id}`);
+        await api.put(`/api/movimientosCaja/${id}`);
         cargarMovimientos();
         cargarCaja();
       } catch (error) {
@@ -61,7 +61,7 @@ export default function ListadoMovimientosCaja() {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      await api.post('http://localhost:9090/api/movimientosCaja/manual', {
+      await api.post('/api/movimientosCaja/manual', {
         ...values,
       });
       setModalVisible(false);

@@ -2,10 +2,19 @@
 import axios from 'axios';
 import { message } from 'antd';
 
-const api = axios.create({
-  baseURL: 'http://localhost:9090', // URL de tu backend
-});
 
+const getBaseURL = () => {
+  if (process.env.NODE_ENV === 'development') {
+    // Reemplaza con la IP de tu máquina en la red local
+    return 'http://localhost:9090';
+  } else {
+    return '/api';
+  }
+};
+
+const api = axios.create({
+  baseURL: getBaseURL(), // URL de tu backend
+});
 // Interceptor para añadir el token a las solicitudes
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');

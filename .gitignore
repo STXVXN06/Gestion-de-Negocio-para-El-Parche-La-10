@@ -46,3 +46,6 @@ dist/
 coverage/
 *.lcov
 docker-parchela10.txt
+
+
+backups/

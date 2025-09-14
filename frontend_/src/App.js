@@ -23,9 +23,14 @@ import Reporte from "./Estadisticas/Reporte";
 import Login from "./Login/Login";
 import Unauthorized from "./Security/Unauthorized";
 import PrivateRoute from "./Security/PrivateRoute";
-import PedidosMobile from "./Pedidos/PedidoMobile/PedidosMobile";
 
 import { useEffect, useState } from 'react';
+import PedidosList from "./Pedidos/PedidoMobile/PedidosList";
+import PedidoForm from "./Pedidos/PedidoMobile/PedidoForm";
+import PedidoEdit from "./Pedidos/PedidoMobile/PedidoEdit";
+import StockView from "./Pedidos/PedidoMobile/StockView";
+import ListadoUsuarios from "./Usuarios/ListadoUsuarios";
+import AgregarUsuario from "./Usuarios/AgregarUsuario";
 
 const { Header, Content } = Layout;
 
@@ -37,7 +42,7 @@ function App() {
     setIsAuthenticated(!!token);
   }, []);
 
-  // if (!isAuthenticated) {
+  // if (!isAuthenticated) { 
   //   return (
   //     <BrowserRouter>
   //       <Routes>
@@ -69,26 +74,39 @@ function App() {
               element={<Unauthorized />}
             />
 
-            {/* Redirección inicial
-            <Route path="/" element={
-              isAuthenticated ?
-                JSON.parse(localStorage.getItem('roles')).includes('ROLE_EMPLEADO') ?
-                  <Navigate to="/pedidos-mobile" /> :
-                  <Navigate to="/ingredientes" /> :
-                <Navigate to="/login" />
-            } /> */}
-
-            {/* Rutas para empleados */}
             <Route
               path="/pedidos-mobile"
               element={
+                <PrivateRoute requiredRoles={['ROLE_EMPLEADO']}>
+                  <PedidosList />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/pedidos-mobile/agregarPedido"
+              element={
                 <PrivateRoute requiredRoles={['ROLE_EMPLEADO', 'ROLE_ADMIN']}>
-                  <PedidosMobile />
+                  <PedidoForm />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/pedidos-mobile/editarPedido/:id"
+              element={
+                <PrivateRoute requiredRoles={['ROLE_ADMIN','ROLE_EMPLEADO']}>
+                  <PedidoEdit />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/mobile/inventario"
+              element={
+                <PrivateRoute requiredRoles={['ROLE_ADMIN','ROLE_EMPLEADO']}>
+                  <StockView />
                 </PrivateRoute>
               }
             />
 
-            {/* Rutas protegidas (solo ADMIN) */}
             <Route
               path="/"
               element={
@@ -100,7 +118,7 @@ function App() {
             <Route
               path="/ingredientes"
               element={
-                <PrivateRoute requiredRoles={['ROLE_ADMIN']}>
+                <PrivateRoute requiredRoles={['ROLE_ADMIN','ROLE_EMPLEADO']}>
                   <ListadoIngredientes />
                 </PrivateRoute>
               }
@@ -124,7 +142,7 @@ function App() {
             <Route
               path="/productos"
               element={
-                <PrivateRoute requiredRoles={['ROLE_ADMIN']}>
+                <PrivateRoute requiredRoles={['ROLE_ADMIN','ROLE_EMPLEADO']}>
                   <ListadoProductos />
                 </PrivateRoute>
               }
@@ -148,7 +166,7 @@ function App() {
             <Route
               path="/pedidos"
               element={
-                <PrivateRoute requiredRoles={['ROLE_ADMIN']}>
+                <PrivateRoute requiredRoles={['ROLE_ADMIN', 'ROLE_EMPLEADO']}>
                   <ListadoPedidos />
                 </PrivateRoute>
               }
@@ -233,6 +251,23 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/usuarios"
+              element={
+                <PrivateRoute requiredRoles={['ROLE_ADMIN']}>
+                  <ListadoUsuarios/>
+                </PrivateRoute>
+              }
+            />
+             <Route
+              path="/agregarUsuario"
+              element={
+                <PrivateRoute requiredRoles={['ROLE_ADMIN']}>
+                  <AgregarUsuario/>
+                </PrivateRoute>
+              }
+            />
+
 
           </Routes>
         </Content>
