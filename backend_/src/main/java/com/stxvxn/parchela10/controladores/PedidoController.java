@@ -221,7 +221,13 @@ public class PedidoController {
 
         Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos, pedidoCombos);
         if (pedidoCreado.isPresent()) {
-            webSocketService.enviarNotificacionNuevoPedido();
+            try {
+                webSocketService.enviarNotificacionNuevoPedido();
+                System.out.println("Notificación WebSocket enviada después de crear pedido");
+            } catch (Exception e) {
+                System.err.println("Error enviando notificación WebSocket: " + e.getMessage());
+                // No fallar la creación del pedido por error en la notificación
+            }
             return ResponseEntity.ok().body(pedidoCreado.orElseThrow());
         }
         return ResponseEntity.notFound().build();

@@ -15,7 +15,16 @@ public class WebSocketService {
     }
 
     public void enviarNotificacionNuevoPedido() {
-        messagingTemplate.convertAndSend("/topic/nuevos-pedidos", 
-            Map.of("tipo", "NUEVO_PEDIDO", "mensaje", "Un empleado ha creado un nuevo pedido"));
+        try {
+            Map<String, String> mensaje = Map.of(
+                    "tipo", "NUEVO_PEDIDO",
+                    "mensaje", "Un empleado ha creado un nuevo pedido");
+
+            messagingTemplate.convertAndSend("/topic/nuevos-pedidos", mensaje);
+            System.out.println("Notificación enviada: " + mensaje);
+        } catch (Exception e) {
+            System.err.println("Error enviando notificación: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

@@ -60,18 +60,19 @@ public class SpringSecurityConfig {
                             .map(role -> role.getName().replace("ROLE_", ""))
                             .toArray(String[]::new);
                     authz.requestMatchers(HttpMethod.valueOf(route.getMethod()), route.getPath()).hasAnyRole(roles);
-                    authz.requestMatchers("/ws/**").authenticated();
                 }
 
             }
+            authz.requestMatchers("/ws/**", "/topic/**").permitAll();
+
             authz.anyRequest().authenticated();
         })
-            .addFilter(new JwtAuthenticationFilter(authenticationManager()))
-            .addFilter(new JwtValidationFilter(authenticationManager()))
-            .csrf(config -> config.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .build();
+                .addFilter(new JwtAuthenticationFilter(authenticationManager()))
+                .addFilter(new JwtValidationFilter(authenticationManager()))
+                .csrf(config -> config.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .build();
 
     }
 
@@ -89,13 +90,12 @@ public class SpringSecurityConfig {
     }
 
     @Bean
-    FilterRegistrationBean<CorsFilter> corsFIlter(){
+    FilterRegistrationBean<CorsFilter> corsFIlter() {
         FilterRegistrationBean<CorsFilter> corsBean = new FilterRegistrationBean<>(
-            new CorsFilter(corsConfigurationSource()));
+                new CorsFilter(corsConfigurationSource()));
 
         corsBean.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return corsBean;
     }
-
 
 }

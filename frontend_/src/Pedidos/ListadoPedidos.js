@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react'; // Añadido useCallback
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'; // Añadido useCallback
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Badge,
@@ -81,14 +81,22 @@ export default function ListadoPedidos() {
 
   const [pedidoACancelar, setPedidoACancelar] = useState(null);
 
+  const [notificationApi, notificationContextHolder] = notification.useNotification();
+  const notificationRef = useRef();
+  notificationRef.current = notificationApi;
+
   const handleWebSocketMessage = useCallback((message) => {
-    if (message.tipo === 'NUEVO_PEDIDO') {
+    console.log("Mensaje WebSocket recibido:", message);
+
+    if (message && message.tipo === 'NUEVO_PEDIDO') {
+      console.log("Nuevo pedido detectado, reproduciendo sonido...");
+
       // Reproducir sonido de notificación
       const audio = new Audio(notificationSound);
       audio.play().catch(e => console.error("Error reproduciendo sonido:", e));
 
       // Mostrar notificación visual
-      notification.info({
+      notificationRef.current.info({
         message: 'Nuevo Pedido',
         description: message.mensaje,
         duration: 5,
@@ -104,6 +112,8 @@ export default function ListadoPedidos() {
       setTimeout(() => {
         cargarPedidos();
       }, 1000);
+    } else {
+      console.log("Mensaje recibido pero no es de tipo NUEVO_PEDIDO:", message);
     }
   }, []);
 
@@ -693,6 +703,7 @@ export default function ListadoPedidos() {
 
   return (
     <div className="listado-container">
+      {notificationContextHolder}
       <div className="page-header">
         <h1>Listado de Pedidos</h1>
         <p>Administra todos los pedidos de tu restaurante</p>
