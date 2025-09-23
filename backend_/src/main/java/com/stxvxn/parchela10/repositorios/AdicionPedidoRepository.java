@@ -19,4 +19,7 @@ public interface AdicionPedidoRepository extends CrudRepository<AdicionPedido, L
     List<AdicionPedido> findByPedidoFechaBetween(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    List<AdicionPedido> findByPedidoIdIn(List<Long> pedidoIds);
+
 }

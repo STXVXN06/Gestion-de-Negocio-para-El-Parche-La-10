@@ -22,4 +22,6 @@ public interface IPedidoService {
     Optional<Pedido> actualizar(Long id, Pedido pedido);
 
     Map<String, Object> calcularIngredientesCancelacion(Long id);
+
+    List<Pedido> obtenerTodosOptimizado();
 }

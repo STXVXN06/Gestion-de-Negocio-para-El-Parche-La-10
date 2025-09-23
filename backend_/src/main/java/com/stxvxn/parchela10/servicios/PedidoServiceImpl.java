@@ -467,4 +467,39 @@ public class PedidoServiceImpl implements IPedidoService {
                 "totalIngredientes", ingredientesADevolver.size());
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public List<Pedido> obtenerTodosOptimizado() {
+        // Obtener pedidos con sus relaciones en menos consultas
+        List<Pedido> pedidos = (List<Pedido>) pedidoRepository.findAll();
+
+        // Precargar todas las relaciones necesarias
+        List<Long> pedidoIds = pedidos.stream().map(Pedido::getId).collect(Collectors.toList());
+
+        // Cargar todas las relaciones en batch
+        Map<Long, List<PedidoProducto>> productosPorPedido = pedidoProductoRepository
+                .findByPedidoIdIn(pedidoIds)
+                .stream()
+                .collect(Collectors.groupingBy(pp -> pp.getPedido().getId()));
+
+        Map<Long, List<PedidoCombo>> combosPorPedido = pedidoComboRepo
+                .findByPedidoIdIn(pedidoIds)
+                .stream()
+                .collect(Collectors.groupingBy(pc -> pc.getPedido().getId()));
+
+        Map<Long, List<AdicionPedido>> adicionesPorPedido = adicionPedidoRepository
+                .findByPedidoIdIn(pedidoIds)
+                .stream()
+                .collect(Collectors.groupingBy(ap -> ap.getPedido().getId()));
+
+        // Asignar relaciones a cada pedido
+        pedidos.forEach(pedido -> {
+            pedido.setPedidoProductos(productosPorPedido.getOrDefault(pedido.getId(), new ArrayList<>()));
+            pedido.setPedidoCombos(combosPorPedido.getOrDefault(pedido.getId(), new ArrayList<>()));
+            pedido.setAdiciones(adicionesPorPedido.getOrDefault(pedido.getId(), new ArrayList<>()));
+        });
+
+        return pedidos;
+    }
+
 }

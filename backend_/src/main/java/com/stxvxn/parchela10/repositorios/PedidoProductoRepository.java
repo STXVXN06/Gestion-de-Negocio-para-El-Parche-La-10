@@ -14,4 +14,6 @@ public interface PedidoProductoRepository extends CrudRepository<PedidoProducto,
 
     List<PedidoProducto> findByPedidoId(Long pedidoId);
 
+    List<PedidoProducto> findByPedidoIdIn(List<Long> pedidoIds);
+
 }

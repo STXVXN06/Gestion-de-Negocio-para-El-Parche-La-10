@@ -9,4 +9,7 @@ import com.stxvxn.parchela10.entidades.PedidoCombo;
 public interface PedidoComboRepository extends CrudRepository<PedidoCombo, Long> {
 
     List<PedidoCombo> findByPedidoId(Long pedidoId);
+
+    List<PedidoCombo> findByPedidoIdIn(List<Long> pedidoIds);
+
 }
