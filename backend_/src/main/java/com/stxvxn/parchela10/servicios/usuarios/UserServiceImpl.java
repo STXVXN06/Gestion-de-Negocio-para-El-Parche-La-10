@@ -14,63 +14,74 @@ import com.stxvxn.parchela10.entidades.Role;
 import com.stxvxn.parchela10.entidades.User;
 import com.stxvxn.parchela10.repositorios.RoleRepository;
 import com.stxvxn.parchela10.repositorios.UserRepository;
+import com.stxvxn.parchela10.servicios.usuarios.estrategia.IPasswordEncryptionService;
+import com.stxvxn.parchela10.servicios.usuarios.estrategia.RoleAssignmentStrategy;
+import com.stxvxn.parchela10.servicios.usuarios.validacion.IUserValidator;
+
+import lombok.RequiredArgsConstructor;
+
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements IUserService {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private RoleRepository roleRepository;
     
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
+    // ✅ Dependencias de abstracciones (DIP)
+    private final UserRepository userRepository;
+    private final RoleAssignmentStrategy roleAssignmentStrategy;
+    private final IPasswordEncryptionService passwordEncryptionService;
+    private final IUserValidator userValidator;
+    
+    // ===== QUERIES =====
+    
     @Override
     @Transactional(readOnly = true)
     public List<User> findAll() {
-
         return (List<User>) userRepository.findAll();
-
     }
-
-    @Override
-    public User save(User user) {
-
-        Optional<Role> optionalRoleUser = roleRepository.findByName("ROLE_USER");
-        Optional<Role> optionalRoleEmpleado = roleRepository.findByName("ROLE_EMPLEADO");
-
-        List<Role> roles = new ArrayList<>();
-
-        optionalRoleUser.ifPresent(roles::add);
-        optionalRoleEmpleado.ifPresent(roles::add);
-
-        if (user.isAdmin()) {
-            Optional<Role> optionalRoleAdmin = roleRepository.findByName("ROLE_ADMIN");
-            optionalRoleAdmin.ifPresent(roles::add);
-        }
-
-        user.setRoles(roles);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-
-
-        return userRepository.save(user);
-    }
-
+    
     @Override
     @Transactional(readOnly = true)
-    public boolean ExistsByUsername(String username) {
-        return userRepository.existsByUsername(username);
-
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
     }
-
+    
     @Override
+    @Transactional(readOnly = true)
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByUsername(String username) {
+        return userRepository.existsByUsername(username);
+    }
+    
+    // ===== COMMANDS =====
+    
+    @Override
+    @Transactional
+    public User save(User user) {
+        // ✅ 1. Validar (delegado)
+        userValidator.validarParaCreacion(user);
+        
+        // ✅ 2. Asignar roles (delegado a estrategia)
+        List<Role> roles = roleAssignmentStrategy.asignarRoles(user.isAdmin());
+        user.setRoles(roles);
+        
+        // ✅ 3. Encriptar contraseña (delegado)
+        String passwordEncriptada = passwordEncryptionService.encriptar(user.getPassword());
+        user.setPassword(passwordEncriptada);
+        
+        // ✅ 4. Persistir (única lógica propia del servicio)
+        return userRepository.save(user);
+    }
+    
+    @Override
+    @Transactional
     public Optional<User> delete(Long id) {
         Optional<User> userOptional = userRepository.findById(id);
-        userOptional.ifPresent(user -> userRepository.delete(user));
+        userOptional.ifPresent(userRepository::delete);
         return userOptional;
-
     }
-
 }

@@ -21,7 +21,7 @@ public class ExistsByUsernameValidation implements ConstraintValidator<ExistsByU
             return true;
         }
 
-        return !userService.ExistsByUsername(username);
+        return !userService.existsByUsername(username);
 
     }
 

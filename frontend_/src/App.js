@@ -22,6 +22,7 @@ import Reporte from "./Estadisticas/Reporte";
 
 import Login from "./Login/Login";
 import Unauthorized from "./Security/Unauthorized";
+import Forbidden from "./Security/Forbidden"; // ✅ NUEVO
 import PrivateRoute from "./Security/PrivateRoute";
 
 import { useEffect, useState } from 'react';
@@ -42,16 +43,6 @@ function App() {
     setIsAuthenticated(!!token);
   }, []);
 
-  // if (!isAuthenticated) { 
-  //   return (
-  //     <BrowserRouter>
-  //       <Routes>
-  //         <Route path="/login" element={<Login />} />
-  //         <Route path="*" element={<Login />} />
-  //       </Routes>
-  //     </BrowserRouter>
-  //   );
-  // }
   return (
     <BrowserRouter>
       <Layout className="main-layout">
@@ -60,7 +51,6 @@ function App() {
             <Navegacion setIsAuthenticated={setIsAuthenticated} />
           </Header>
         )}
-
 
         <Content className={isAuthenticated ? "app-content" : ""}>
           <Routes>
@@ -73,11 +63,17 @@ function App() {
               path="/unauthorized"
               element={<Unauthorized />}
             />
+            {/* ✅ NUEVA RUTA */}
+            <Route
+              path="/forbidden"
+              element={<Forbidden />}
+            />
 
+            {/* Rutas protegidas EMPLEADO */}
             <Route
               path="/pedidos-mobile"
               element={
-                <PrivateRoute requiredRoles={['ROLE_EMPLEADO']}>
+                <PrivateRoute requiredRoles={['ROLE_EMPLEADO', 'ROLE_ADMIN']}>
                   <PedidosList />
                 </PrivateRoute>
               }
@@ -107,6 +103,7 @@ function App() {
               }
             />
 
+            {/* Rutas protegidas ADMIN */}
             <Route
               path="/"
               element={
@@ -259,7 +256,7 @@ function App() {
                 </PrivateRoute>
               }
             />
-             <Route
+            <Route
               path="/agregarUsuario"
               element={
                 <PrivateRoute requiredRoles={['ROLE_ADMIN']}>
@@ -267,8 +264,6 @@ function App() {
                 </PrivateRoute>
               }
             />
-
-
           </Routes>
         </Content>
       </Layout>

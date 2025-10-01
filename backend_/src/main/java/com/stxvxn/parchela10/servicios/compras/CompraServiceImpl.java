@@ -11,6 +11,7 @@ import com.stxvxn.parchela10.repositorios.CompraRepository;
 import com.stxvxn.parchela10.servicios.caja.ICajaService;
 import com.stxvxn.parchela10.servicios.caja.IMovimientoCajaService;
 import com.stxvxn.parchela10.servicios.compras.estrategias.CompraProcessor;
+import com.stxvxn.parchela10.servicios.compras.validacion.CompraValidator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,11 +32,12 @@ public class CompraServiceImpl implements ICompraService {
     private final List<CompraProcessor> compraProcessors; // Inyección de todas las estrategias
     private final IMovimientoCajaService movimientoCajaService;
     private final ICajaService cajaService;
+    private final CompraValidator compraValidator;
 
     @Override
     @Transactional
     public Compra registrarCompra(Compra compra) {
-        validarCompra(compra);
+        compraValidator.validar(compra);
         
         // Obtener caja actual
         Caja cajaActual = cajaService.obtenerCajaActual()
@@ -89,18 +91,6 @@ public class CompraServiceImpl implements ICompraService {
     }
 
     // ==================== Métodos Privados ====================
-
-    private void validarCompra(Compra compra) {
-        if (compra == null) {
-            throw new IllegalArgumentException("La compra no puede ser nula");
-        }
-        if (compra.getTipo() == null) {
-            throw new IllegalArgumentException("El tipo de compra es obligatorio");
-        }
-        if (compra.getCostoTotal() == null || compra.getCostoTotal() <= 0) {
-            throw new IllegalArgumentException("El costo total debe ser mayor a cero");
-        }
-    }
 
     /**
      * Obtiene el procesador adecuado según el tipo de compra

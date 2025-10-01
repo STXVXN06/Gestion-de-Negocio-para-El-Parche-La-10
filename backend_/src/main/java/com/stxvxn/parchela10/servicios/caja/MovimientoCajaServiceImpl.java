@@ -168,15 +168,34 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
     }
 
     @Override
+    @Transactional
     public void registrarEgresoPorCompra(String descripcion, Long monto, Long cajaId, Compra compra) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'registrarEgresoPorCompra'");
+        crearMovimiento("EGRESO", descripcion, monto, cajaId, compra, null);
     }
 
     @Override
+    @Transactional
     public void eliminarMovimientosPorCompra(Long compraId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'eliminarMovimientosPorCompra'");
+        Optional<MovimientoCaja> movimientoOpt = movimientoCajaRepository.findByCompraId(compraId);
+        
+        if (movimientoOpt.isPresent()) {
+            MovimientoCaja movimiento = movimientoOpt.get();
+            
+            // Anular el movimiento (cambio de estado)
+            movimiento.setEstado("ANULADO");
+            movimientoCajaRepository.save(movimiento);
+            
+            // Revertir el monto en la caja
+            Caja caja = movimiento.getCaja();
+            if (movimiento.getTipo().equals("EGRESO")) {
+                // Si era un egreso, devolvemos el dinero a la caja
+                caja.setMontoActual(caja.getMontoActual() + movimiento.getMonto());
+            } else {
+                // Si era un ingreso, lo restamos de la caja
+                caja.setMontoActual(caja.getMontoActual() - movimiento.getMonto());
+            }
+            cajaService.save(caja);
+        }
     }
 
 }

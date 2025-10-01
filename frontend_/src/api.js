@@ -21,28 +21,74 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log('🚀 Request:', config.method.toUpperCase(), config.url);
+  console.log('🔑 Token:', token ? 'Presente' : 'Ausente');
   return config;
 }, error => {
   return Promise.reject(error);
 });
 
 // Interceptor para manejar errores
-api.interceptors.response.use(response => response, error => {
-  if (error.response) {
-    if (error.response.status === 401) {
-      message.error('Sesión expirada. Por favor inicie sesión nuevamente');
-      localStorage.removeItem('token');
-      localStorage.removeItem('username');
-      window.location.href = '/login';
-    } else if (error.response.status === 403) {
-      message.error('No tiene permisos para realizar esta acción');
+api.interceptors.response.use(
+  response => {
+    // ✅ LOG para debug (eliminar después)
+    console.log('✅ Response:', response.status, response.config.url);
+    return response;
+  },
+  error => {
+    // ✅ LOG para debug (eliminar después)
+    console.error('❌ Error Response:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+
+    if (error.response) {
+      const status = error.response.status;
+      
+      switch (status) {
+        case 401:
+          message.error('Sesión expirada. Por favor inicie sesión nuevamente');
+          localStorage.removeItem('token');
+          localStorage.removeItem('username');
+          localStorage.removeItem('roles');
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1500);
+          break;
+          
+        case 403:
+          message.error('No tienes permisos para acceder a este recurso');
+          setTimeout(() => {
+            window.location.href = '/forbidden';
+          }, 1500);
+          break;
+          
+        case 404:
+          message.error('Recurso no encontrado');
+          break;
+          
+        case 500:
+          message.error('Error interno del servidor');
+          break;
+          
+        default:
+          message.error(
+            error.response.data?.mensaje || 
+            error.response.data?.message || 
+            'Error en la solicitud'
+          );
+      }
+    } else if (error.request) {
+      message.error('Error de conexión con el servidor');
+      console.error('Error de red:', error.request);
     } else {
-      message.error(`Error en la solicitud: ${error.response.data.message || 'Error desconocido'}`);
+      message.error('Error al configurar la solicitud');
+      console.error('Error:', error.message);
     }
-  } else {
-    message.error('Error de conexión con el servidor');
+    
+    return Promise.reject(error);
   }
-  return Promise.reject(error);
-});
+);
 
 export default api;
