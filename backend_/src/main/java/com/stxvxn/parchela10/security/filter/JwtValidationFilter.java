@@ -64,6 +64,10 @@ public class JwtValidationFilter extends BasicAuthenticationFilter {
 
             UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username,
                     null, authorities);
+            System.out.println("✅ Token válido para: " + username);
+            System.out.println("✅ Authorities: " + authorities);
+            System.out.println("✅ Request URI: " + request.getRequestURI());
+
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             chain.doFilter(request, response);
 

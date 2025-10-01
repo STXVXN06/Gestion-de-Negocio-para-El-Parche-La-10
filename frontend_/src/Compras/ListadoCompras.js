@@ -23,8 +23,15 @@ export default function ListadoCompras() {
   }, []);
 
   const cargarCompras = async () => {
-    const resultado = await api.get(urlBase);
-    setCompras(resultado.data);
+    try {
+      console.log('Iniciando carga de compras...');
+      const resultado = await api.get(urlBase);
+      console.log('Compras recibidas:', resultado.data);
+      setCompras(resultado.data);
+      console.log('Estado actualizado correctamente');
+    } catch (error) {
+      console.error('Error cargando compras:', error);
+    }
   };
 
   const cargarIngredientes = async () => {
