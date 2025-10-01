@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.stxvxn.parchela10.DTO.MovimientoManualDTO;
+import com.stxvxn.parchela10.dto.MovimientoManualDTO;
 import com.stxvxn.parchela10.entidades.MovimientoCaja;
-import com.stxvxn.parchela10.servicios.MovimientoCajaServiceImpl;
+import com.stxvxn.parchela10.servicios.caja.MovimientoCajaServiceImpl;
 
 import jakarta.validation.Valid;
 

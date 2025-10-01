@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.entidades.User;
-import com.stxvxn.parchela10.servicios.RoleServiceImpl;
-import com.stxvxn.parchela10.servicios.UserServiceImpl;
+import com.stxvxn.parchela10.servicios.roles.RoleServiceImpl;
+import com.stxvxn.parchela10.servicios.usuarios.UserServiceImpl;
 
 import jakarta.validation.Valid;
 

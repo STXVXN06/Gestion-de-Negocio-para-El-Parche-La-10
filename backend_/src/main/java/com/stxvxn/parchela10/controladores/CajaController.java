@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.entidades.Caja;
-import com.stxvxn.parchela10.servicios.CajaServiceImpl;
+import com.stxvxn.parchela10.servicios.caja.CajaServiceImpl;
 
 
 @RestController

@@ -12,11 +12,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.stxvxn.parchela10.DTO.AdicionReporteDTO;
-import com.stxvxn.parchela10.DTO.DesperdicioReporteDTO;
-import com.stxvxn.parchela10.DTO.IngredienteUsoDTO;
-import com.stxvxn.parchela10.DTO.ProductoVentaDTO;
-import com.stxvxn.parchela10.servicios.ReporteServiceImpl;
+import com.stxvxn.parchela10.dto.AdicionReporteDTO;
+import com.stxvxn.parchela10.dto.DesperdicioReporteDTO;
+import com.stxvxn.parchela10.dto.IngredienteUsoDTO;
+import com.stxvxn.parchela10.dto.ProductoVentaDTO;
+import com.stxvxn.parchela10.servicios.reportes.ReporteServiceImpl;
 
 @RestController
 @RequestMapping("/api/reportes")

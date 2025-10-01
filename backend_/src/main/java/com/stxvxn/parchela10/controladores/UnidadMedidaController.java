@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.entidades.UnidadMedida;
-import com.stxvxn.parchela10.servicios.UnidadMedidaServiceImpl;
+import com.stxvxn.parchela10.servicios.unidadMedidad.UnidadMedidaServiceImpl;
 
 @RestController
 @CrossOrigin(value = "http://localhost:3000")

@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.stxvxn.parchela10.DTO.ComboConPrecioDTO;
-import com.stxvxn.parchela10.DTO.ComboDTO;
+import com.stxvxn.parchela10.dto.ComboConPrecioDTO;
+import com.stxvxn.parchela10.dto.ComboDTO;
 import com.stxvxn.parchela10.entidades.Combo;
 import com.stxvxn.parchela10.entidades.ComboProducto;
-import com.stxvxn.parchela10.servicios.ComboServiceImpl;
+import com.stxvxn.parchela10.servicios.combos.ComboServiceImpl;
 
 @RestController
 @CrossOrigin("http://localhost:3000")

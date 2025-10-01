@@ -13,13 +13,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.stxvxn.parchela10.DTO.DesperdicioRequestDTO;
+import com.stxvxn.parchela10.dto.DesperdicioRequestDTO;
 import com.stxvxn.parchela10.entidades.Desperdicio;
 import com.stxvxn.parchela10.entidades.Ingrediente;
 import com.stxvxn.parchela10.entidades.Producto;
-import com.stxvxn.parchela10.servicios.DesperdicioServiceImpl;
-import com.stxvxn.parchela10.servicios.IngredienteServiceImpl;
-import com.stxvxn.parchela10.servicios.ProductoServiceImpl;
+import com.stxvxn.parchela10.servicios.desperdicios.DesperdicioServiceImpl;
+import com.stxvxn.parchela10.servicios.ingredientes.IngredienteServiceImpl;
+import com.stxvxn.parchela10.servicios.productos.ProductoServiceImpl;
 
 @RestController
 @CrossOrigin(value = "http://localhost:3000")

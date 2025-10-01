@@ -24,14 +24,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.stxvxn.parchela10.DTO.AdicionRequestDTO;
-import com.stxvxn.parchela10.DTO.AdicionResponseDTO;
-import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
-import com.stxvxn.parchela10.DTO.PedidoComboDTO;
-import com.stxvxn.parchela10.DTO.PedidoConProductosDTO;
-import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ComboEnPedido;
-import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ProductoEnPedido;
-import com.stxvxn.parchela10.DTO.PedidoRequestDTO;
+import com.stxvxn.parchela10.dto.AdicionRequestDTO;
+import com.stxvxn.parchela10.dto.AdicionResponseDTO;
+import com.stxvxn.parchela10.dto.EditarPedidoDTO;
+import com.stxvxn.parchela10.dto.PedidoComboDTO;
+import com.stxvxn.parchela10.dto.PedidoConProductosDTO;
+import com.stxvxn.parchela10.dto.PedidoRequestDTO;
+import com.stxvxn.parchela10.dto.PedidoConProductosDTO.ComboEnPedido;
+import com.stxvxn.parchela10.dto.PedidoConProductosDTO.ProductoEnPedido;
 import com.stxvxn.parchela10.entidades.AdicionPedido;
 import com.stxvxn.parchela10.entidades.Combo;
 import com.stxvxn.parchela10.entidades.ComboProducto;
@@ -43,14 +43,14 @@ import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
 import com.stxvxn.parchela10.repositorios.AdicionPedidoRepository;
 import com.stxvxn.parchela10.repositorios.PedidoComboRepository;
-import com.stxvxn.parchela10.servicios.ComboServiceImpl;
-import com.stxvxn.parchela10.servicios.EmailServiceImpl;
-import com.stxvxn.parchela10.servicios.IngredienteServiceImpl;
-import com.stxvxn.parchela10.servicios.PedidoProductoServiceImpl;
-import com.stxvxn.parchela10.servicios.PedidoServiceImpl;
-import com.stxvxn.parchela10.servicios.ProductoIngredienteServiceImpl;
-import com.stxvxn.parchela10.servicios.ProductoServiceImpl;
-import com.stxvxn.parchela10.servicios.WebSocketService;
+import com.stxvxn.parchela10.servicios.combos.ComboServiceImpl;
+import com.stxvxn.parchela10.servicios.emails.EmailServiceImpl;
+import com.stxvxn.parchela10.servicios.ingredientes.IngredienteServiceImpl;
+import com.stxvxn.parchela10.servicios.pedidos.PedidoProductoServiceImpl;
+import com.stxvxn.parchela10.servicios.pedidos.PedidoServiceImpl;
+import com.stxvxn.parchela10.servicios.productos.ProductoIngredienteServiceImpl;
+import com.stxvxn.parchela10.servicios.productos.ProductoServiceImpl;
+import com.stxvxn.parchela10.servicios.websockets.WebSocketService;
 
 @RestController
 @CrossOrigin(value = "http://localhost:3000")

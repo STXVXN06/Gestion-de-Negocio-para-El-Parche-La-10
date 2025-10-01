@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.entidades.Ingrediente;
-import com.stxvxn.parchela10.servicios.IngredienteServiceImpl;
+import com.stxvxn.parchela10.servicios.ingredientes.IngredienteServiceImpl;
 
 import jakarta.validation.Valid;
 
