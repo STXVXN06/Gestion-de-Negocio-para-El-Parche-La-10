@@ -79,9 +79,12 @@ public class Compra {
     // Enums para mejorar type safety
     public enum TipoCompra {
         INGREDIENTE,
+        ASEO,
+        MATERIALES,
+        UTENSILIOS,
         SERVICIO,
         EQUIPO,
-        OTRO
+        OTROS
     }
 
     public enum EstadoCompra {

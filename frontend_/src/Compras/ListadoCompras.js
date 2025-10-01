@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Modal, DatePicker, Select } from 'antd';
+import { Table, Tag, Button, DatePicker, Select } from 'antd';
 import { CloseCircleOutlined } from '@ant-design/icons';
 import moment from 'moment';
 import ModalCompra from './ModalCompra';
@@ -12,7 +12,7 @@ export default function ListadoCompras() {
   const urlBase = '/api/compras';
   const [compras, setCompras] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [tiposCompra] = useState(['INGREDIENTE', 'ASEO', 'MATERIALES', 'UTENSILIOS', 'OTROS']);
+  const [tiposCompra] = useState(['INGREDIENTE', 'ASEO', 'MATERIALES', 'UTENSILIOS', 'SERVICIO', 'EQUIPO', 'OTROS']);
   const [ingredientes, setIngredientes] = useState([]);
   const [filtroEstado, setFiltroEstado] = useState('TODAS');
   const [rangoFechas, setRangoFechas] = useState([]);
@@ -35,14 +35,22 @@ export default function ListadoCompras() {
   };
 
   const cargarIngredientes = async () => {
-    const resultado = await api.get('/api/ingredientes');
-    setIngredientes(resultado.data);
+    try {
+      const resultado = await api.get('/api/ingredientes');
+      setIngredientes(resultado.data);
+    } catch (error) {
+      console.error('Error cargando ingredientes:', error);
+    }
   };
 
   const eliminarCompra = async (id) => {
     if (window.confirm('¿Está seguro de anular esta compra?')) {
-      await api.patch(`${urlBase}/${id}`);
-      cargarCompras();
+      try {
+        await api.delete(`${urlBase}/${id}`);
+        cargarCompras();
+      } catch (error) {
+        console.error('Error anulando compra:', error);
+      }
     }
   };
 
@@ -66,6 +74,34 @@ export default function ListadoCompras() {
     })
     .sort((a, b) => moment(b.fecha) - moment(a.fecha));
 
+  // Función helper para renderizar la descripción de forma segura
+  const renderDescripcion = (record) => {
+    const baseStyle = {
+      color: record.estado === 'ANULADA' ? 'red' : 'inherit',
+      textDecoration: record.estado === 'ANULADA' ? 'line-through' : 'none'
+    };
+
+    // Si es compra de ingrediente
+    if (record.tipo === 'INGREDIENTE' && record.ingrediente) {
+      const nombreIngrediente = record.ingrediente?.nombre || 'N/A';
+      const cantidad = record.cantidad || 0;
+      const unidad = record.ingrediente?.unidadMedida?.simbolo || '';
+      
+      return (
+        <span style={baseStyle}>
+          {`${nombreIngrediente} (${cantidad} ${unidad})`}
+        </span>
+      );
+    }
+    
+    // Para otros tipos de compra
+    return (
+      <span style={baseStyle}>
+        {record.descripcion || 'Sin descripción'}
+      </span>
+    );
+  };
+
   return (
     <div className="container">
       <div className="header-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -79,10 +115,11 @@ export default function ListadoCompras() {
       </div>
 
       {/* Filtros */}
-      <div style={{ marginBottom: 16, display: 'flex', gap: 16 }}>
+      <div style={{ marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <RangePicker
           onChange={handleRangoFechas}
           style={{ width: 300 }}
+          placeholder={['Fecha inicio', 'Fecha fin']}
         />
 
         <Select
@@ -117,25 +154,14 @@ export default function ListadoCompras() {
         <Column
           title="Descripción"
           key="descripcion"
-          render={(_, record) => (
-            <span
-              style={{
-                color: record.estado === 'ANULADA' ? 'red' : 'inherit',
-                textDecoration: record.estado === 'ANULADA' ? 'line-through' : 'none'
-              }}
-            >
-              {record.tipo === 'INGREDIENTE'
-                ? `${record.ingrediente?.nombre} (${record.cantidad} ${record.ingrediente?.unidadMedida?.simbolo || ''})`
-                : record.descripcion}
-            </span>
-          )}
+          render={(_, record) => renderDescripcion(record)}
         />
 
         <Column
           title="Monto"
           dataIndex="costoTotal"
           key="costoTotal"
-          render={(costo) => `$${costo?.toLocaleString()}`}
+          render={(costo) => `$${(costo || 0).toLocaleString()}`}
           align="right"
         />
 
@@ -152,7 +178,7 @@ export default function ListadoCompras() {
           dataIndex="estado"
           key="estado"
           render={(estado) => (
-            <Tag color={estado === 'ANULADA' ? 'red' : 'blue'}>
+            <Tag color={estado === 'ANULADA' ? 'red' : 'green'}>
               {estado || 'ACTIVA'}
             </Tag>
           )}

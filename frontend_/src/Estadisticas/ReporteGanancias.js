@@ -5,7 +5,7 @@ import moment from 'moment';
 import jsPDF from 'jspdf';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format, subYears, addYears, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import './Reporte.css';
 import api from '../api';
 
@@ -19,11 +19,10 @@ const ReporteGanancias = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Función para obtener inicio y fin del día actual (00:00:00 a 23:59:59)
   const getTodayRange = () => {
     const hoy = new Date();
-    const start = startOfDay(hoy); // 00:00:00
-    const end = endOfDay(hoy);     // 23:59:59
+    const start = startOfDay(hoy);
+    const end = endOfDay(hoy);
     return { start, end };
   };
 
@@ -34,6 +33,28 @@ const ReporteGanancias = () => {
     const { start, end } = getTodayRange();
     setFechaInicio(start);
     setFechaFin(end);
+  };
+
+  // Función para obtener descripción según el tipo de movimiento
+  const getDescripcionMovimiento = (movimiento) => {
+    if (movimiento.pedido && movimiento.pedido.id) {
+      return `Pedido #${movimiento.pedido.id} - ${movimiento.pedido.estado}`;
+    } else if (movimiento.compra && movimiento.compra.id) {
+      return movimiento.descripcion || `Compra #${movimiento.compra.id}`;
+    } else {
+      return movimiento.descripcion || 'Movimiento manual';
+    }
+  };
+
+  // Función para obtener el origen del movimiento
+  const getOrigenMovimiento = (movimiento) => {
+    if (movimiento.pedido && movimiento.pedido.id) {
+      return 'PEDIDO';
+    } else if (movimiento.compra && movimiento.compra.id) {
+      return 'COMPRA';
+    } else {
+      return 'MANUAL';
+    }
   };
 
   const obtenerDatos = async () => {
@@ -57,7 +78,19 @@ const ReporteGanancias = () => {
       setIngresos(ingresosRes.data);
       setGastos(gastosRes.data);
 
+      // Procesar transacciones y limpiar referencias circulares
       const transaccionesFiltradas = transaccionesRes.data
+        .map(t => ({
+          id: t.id,
+          tipo: t.tipo,
+          descripcion: getDescripcionMovimiento(t),
+          monto: t.monto,
+          estado: t.estado,
+          fecha: t.fecha,
+          origen: getOrigenMovimiento(t),
+          pedidoId: t.pedido?.id || null,
+          compraId: t.compra?.id || null
+        }))
         .filter(t => {
           const fechaTrans = new Date(t.fecha);
           return fechaTrans >= fechaInicio && fechaTrans <= fechaFin;
@@ -89,9 +122,8 @@ const ReporteGanancias = () => {
     pdf.setFontSize(16);
     pdf.text('Transacciones', 20, 75);
     pdf.setFontSize(12);
-    const headers = ['Descripción', 'Fecha', 'Tipo', 'Monto', 'Estado'];
-    const colWidths = [70, 35, 25, 25, 25];
-    const colPositions = [20, 90, 125, 150, 175];
+    const headers = ['Descripción', 'Origen', 'Tipo', 'Monto', 'Estado'];
+    const colPositions = [20, 80, 110, 135, 165];
     headers.forEach((header, i) => {
       pdf.text(header, colPositions[i], 85);
     });
@@ -107,13 +139,13 @@ const ReporteGanancias = () => {
         pdf.line(20, yPos + 2, 190, yPos + 2);
         yPos += 15;
       }
-      const descLines = pdf.splitTextToSize(trans.descripcion, colWidths[0]);
+      const descLines = pdf.splitTextToSize(trans.descripcion, 55);
       pdf.text(descLines, colPositions[0], yPos);
-      pdf.text(moment(trans.fecha).format('DD/MM HH:mm'), colPositions[1], yPos);
+      pdf.text(trans.origen, colPositions[1], yPos);
       pdf.text(trans.tipo, colPositions[2], yPos);
       const montoText = trans.tipo === 'INGRESO' ? `+$${trans.monto.toLocaleString()}` : `-$${trans.monto.toLocaleString()}`;
       pdf.text(montoText, colPositions[3], yPos);
-      pdf.text(trans.estado || 'ACTIVO', colPositions[4], yPos);
+      pdf.text(trans.estado || 'activo', colPositions[4], yPos);
       yPos += Math.max(10, descLines.length * 7);
     });
     pdf.save(`reporte-ganancias-${moment().format('YYYYMMDD')}.pdf`);
@@ -122,14 +154,23 @@ const ReporteGanancias = () => {
   const columnasTransacciones = [
     {
       title: 'Descripción',
-      dataIndex: 'descripcion',
       key: 'descripcion',
-      render: (text, record) => (
+      render: (_, record) => (
         <div>
-          <div><strong>{text}</strong></div>
+          <div><strong>{record.descripcion}</strong></div>
           <div className="fecha-transaccion">
             {moment(record.fecha).format('DD/MM/YYYY HH:mm')}
           </div>
+          <Tag 
+            color={
+              record.origen === 'PEDIDO' ? 'blue' : 
+              record.origen === 'COMPRA' ? 'orange' : 
+              'purple'
+            }
+            style={{ marginTop: 4 }}
+          >
+            {record.origen}
+          </Tag>
         </div>
       )
     },
@@ -147,19 +188,24 @@ const ReporteGanancias = () => {
       title: 'Monto',
       dataIndex: 'monto',
       key: 'monto',
-      render: (monto, record) => (
-        <div className="monto-transaccion">
-          {record.tipo === 'INGRESO' ? '+' : '-'}${monto.toLocaleString()}
-        </div>
-      )
+      render: (monto, record) => {
+        const color = record.tipo === 'INGRESO' ? '#3f8600' : '#cf1322';
+        const signo = record.tipo === 'INGRESO' ? '+' : '-';
+        return (
+          <div style={{ color, fontWeight: 'bold', fontSize: '16px' }}>
+            {signo}${monto?.toLocaleString()}
+          </div>
+        );
+      },
+      align: 'right'
     },
     {
       title: 'Estado',
       dataIndex: 'estado',
       key: 'estado',
       render: (estado) => (
-        <Tag color={estado === 'ANULADO' ? 'red' : 'blue'}>
-          {estado || 'ACTIVO'}
+        <Tag color={estado === 'ANULADO' ? 'red' : 'green'}>
+          {estado || 'activo'}
         </Tag>
       )
     },
@@ -253,7 +299,7 @@ const ReporteGanancias = () => {
                   prefix="$"
                   suffix={ganancias >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                 />
-                <div className="stat-comparison">Hoy</div>
+                <div className="stat-comparison">Período seleccionado</div>
               </Card>
             </Col>
             <Col xs={24} sm={24} md={8} lg={8} xl={8}>
@@ -266,7 +312,7 @@ const ReporteGanancias = () => {
                   prefix="$"
                 />
                 <div className="stat-comparison">
-                  {transacciones.filter(t => t.tipo === 'INGRESO').length} transacciones
+                  {transacciones.filter(t => t.tipo === 'INGRESO' && t.estado !== 'ANULADO').length} transacciones
                 </div>
               </Card>
             </Col>
@@ -280,7 +326,7 @@ const ReporteGanancias = () => {
                   prefix="$"
                 />
                 <div className="stat-comparison">
-                  {transacciones.filter(t => t.tipo === 'EGRESO').length} transacciones
+                  {transacciones.filter(t => t.tipo === 'EGRESO' && t.estado !== 'ANULADO').length} transacciones
                 </div>
               </Card>
             </Col>

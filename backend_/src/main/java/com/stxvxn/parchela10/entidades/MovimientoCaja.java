@@ -3,6 +3,8 @@ package com.stxvxn.parchela10.entidades;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,5 +53,6 @@ public class MovimientoCaja {
 
     @ManyToOne
     @JoinColumn(name = "pedido_id")
+    @JsonIgnoreProperties({"pedidoProductos", "adiciones", "pedidoCombos"}) // ✅ Ignorar relaciones
     private Pedido pedido;
 }
