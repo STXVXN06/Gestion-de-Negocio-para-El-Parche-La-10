@@ -22,4 +22,12 @@ public interface AdicionPedidoRepository extends CrudRepository<AdicionPedido, L
 
     List<AdicionPedido> findByPedidoIdIn(List<Long> pedidoIds);
 
+    @Query("""
+            SELECT DISTINCT a FROM AdicionPedido a
+            JOIN FETCH a.ingrediente ing
+            JOIN FETCH ing.unidadMedida
+            WHERE a.pedido.id IN :pedidoIds
+            """)
+    List<AdicionPedido> findByPedidoIdInWithIngrediente(@Param("pedidoIds") List<Long> pedidoIds);
+
 }

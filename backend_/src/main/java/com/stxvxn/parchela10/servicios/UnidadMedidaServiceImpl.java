@@ -3,6 +3,8 @@ package com.stxvxn.parchela10.servicios;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.stxvxn.parchela10.entidades.UnidadMedida;
@@ -17,6 +19,10 @@ public class UnidadMedidaServiceImpl implements IUnidadMedidaService {
     @Override
     public List<UnidadMedida> obtenerTodos() {
         return (List<UnidadMedida>) unidadMedidaRepository.findAll(); 
+    }
+
+    public Page<UnidadMedida> obtenerTodos(Pageable pageable) {
+        return unidadMedidaRepository.findAll(pageable);
     }
 
 }

@@ -14,7 +14,7 @@ public interface ComboProductoRepository extends CrudRepository<ComboProducto, L
 
     void deleteByComboId(Long comboId);
 
-    @Query("SELECT cp FROM ComboProducto cp WHERE cp.combo.id IN :comboIds")
+    @Query("SELECT DISTINCT cp FROM ComboProducto cp JOIN FETCH cp.producto JOIN FETCH cp.combo WHERE cp.combo.id IN :comboIds")
     List<ComboProducto> findByComboIds(@Param("comboIds") List<Long> comboIds);
 
 }

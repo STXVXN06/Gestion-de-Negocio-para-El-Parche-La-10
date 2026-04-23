@@ -32,6 +32,8 @@ services:
       DB_USER: user
       DB_PASSWORD: root
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/parche_la_10_bd?createDatabaseIfNotExist=true
+      # Opcional: SQL en logs — descomenta para depuración
+      # SPRING_PROFILES_ACTIVE: dev
     depends_on:
       db:
         condition: service_healthy

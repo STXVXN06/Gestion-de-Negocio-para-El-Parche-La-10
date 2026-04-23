@@ -1,10 +1,19 @@
 package com.stxvxn.parchela10.controladores;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -15,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.stxvxn.parchela10.DTO.ComboConPrecioDTO;
@@ -71,37 +81,34 @@ public class ComboController {
     public ResponseEntity<?> listarCombosActivos() {
         List<Combo> combos = comboService.listarCombosActivos();
         if (combos.isEmpty()) {
-            return ResponseEntity.ok().body("No hay combos activos registrados.");
-        }
-        // Mapear a DTO con precio
-        List<ComboConPrecioDTO> dtos = new ArrayList<>();
-        for (Combo combo : combos) {
-            ComboConPrecioDTO dto = new ComboConPrecioDTO();
-            dto.setId(combo.getId());
-            dto.setNombre(combo.getNombre());
-            dto.setDescripcion(combo.getDescripcion());
-            dto.setActivo(combo.getActivo());
-            dto.setPrecio(combo.getPrecio()); // Calcular precio
-
-            // Obtener productos del combo
-            List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
-            List<ComboConPrecioDTO.ProductoEnComboDTO> productosDTO = new ArrayList<>();
-
-            for (ComboProducto cp : productosCombo) {
-                ComboConPrecioDTO.ProductoEnComboDTO prodDTO = new ComboConPrecioDTO.ProductoEnComboDTO();
-                prodDTO.setId(cp.getProducto().getId());
-                prodDTO.setNombre(cp.getProducto().getNombre());
-                prodDTO.setPrecio(cp.getProducto().getPrecio());
-                prodDTO.setCantidad(cp.getCantidad());
-                productosDTO.add(prodDTO);
-            }
-
-            dto.setProductos(productosDTO);
-
-            dtos.add(dto);
+            return ResponseEntity.ok(Collections.emptyList());
         }
 
-        return ResponseEntity.ok(dtos);
+        List<Long> comboIds = combos.stream().map(Combo::getId).toList();
+        List<ComboProducto> productosCombos = comboService.obtenerProductosDeCombos(comboIds);
+        return ResponseEntity.ok(mapCombosToDtos(combos, productosCombos));
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Page<ComboConPrecioDTO>> listarCombosActivosPage(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
+    ) {
+        int p = page != null ? Math.max(0, page) : 0;
+        int s = size != null ? Math.min(100, Math.max(1, size)) : 20;
+        Pageable pageable = PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "id"));
+
+        Page<Combo> combosPage = comboService.listarCombosActivos(pageable);
+        List<Combo> combos = combosPage.getContent();
+        if (combos.isEmpty()) {
+            return ResponseEntity.ok(Page.empty(pageable));
+        }
+
+        List<Long> comboIds = combos.stream().map(Combo::getId).toList();
+        List<ComboProducto> productosCombos = comboService.obtenerProductosDeCombos(comboIds);
+        List<ComboConPrecioDTO> dtos = mapCombosToDtos(combos, productosCombos);
+
+        return ResponseEntity.ok(new PageImpl<>(dtos, pageable, combosPage.getTotalElements()));
     }
 
     @GetMapping("/{id}")
@@ -112,32 +119,8 @@ public class ComboController {
         }
         Combo combo = comboOpt.orElseThrow();
 
-        // Mapear a DTO con precio
-
-        ComboConPrecioDTO dto = new ComboConPrecioDTO();
-        dto.setId(combo.getId());
-        dto.setNombre(combo.getNombre());
-        dto.setDescripcion(combo.getDescripcion());
-        dto.setActivo(combo.getActivo());
-        dto.setPrecio(combo.getPrecio()); // Calcular precio
-
-        // Obtener productos del combo
         List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
-        List<ComboConPrecioDTO.ProductoEnComboDTO> productosDTO = new ArrayList<>();
-
-        for (ComboProducto cp : productosCombo) {
-            ComboConPrecioDTO.ProductoEnComboDTO prodDTO = new ComboConPrecioDTO.ProductoEnComboDTO();
-            prodDTO.setId(cp.getProducto().getId());
-            prodDTO.setNombre(cp.getProducto().getNombre());
-            prodDTO.setPrecio(cp.getProducto().getPrecio());
-            prodDTO.setCantidad(cp.getCantidad());
-            productosDTO.add(prodDTO);
-        }
-
-        dto.setProductos(productosDTO);
-
-
-        return ResponseEntity.ok(dto);
+        return ResponseEntity.ok(mapComboToDto(combo, productosCombo));
 
     }
 
@@ -146,5 +129,38 @@ public class ComboController {
         Combo combo = comboService.findById(id).orElseThrow();
         return ResponseEntity.ok(combo.getPrecio());
 
+    }
+
+    private static ComboConPrecioDTO mapComboToDto(Combo combo, List<ComboProducto> productosCombo) {
+        ComboConPrecioDTO dto = new ComboConPrecioDTO();
+        dto.setId(combo.getId());
+        dto.setNombre(combo.getNombre());
+        dto.setDescripcion(combo.getDescripcion());
+        dto.setActivo(combo.getActivo());
+        dto.setPrecio(combo.getPrecio());
+
+        List<ComboConPrecioDTO.ProductoEnComboDTO> productosDTO = new ArrayList<>();
+        for (ComboProducto cp : productosCombo) {
+            ComboConPrecioDTO.ProductoEnComboDTO prodDTO = new ComboConPrecioDTO.ProductoEnComboDTO();
+            prodDTO.setId(cp.getProducto().getId());
+            prodDTO.setNombre(cp.getProducto().getNombre());
+            prodDTO.setPrecio(cp.getProducto().getPrecio());
+            prodDTO.setCantidad(cp.getCantidad());
+            productosDTO.add(prodDTO);
+        }
+        dto.setProductos(productosDTO);
+        return dto;
+    }
+
+    private static List<ComboConPrecioDTO> mapCombosToDtos(List<Combo> combos, List<ComboProducto> productosCombos) {
+        Map<Long, List<ComboProducto>> byComboId = new HashMap<>();
+        for (ComboProducto cp : productosCombos) {
+            Long comboId = cp.getCombo().getId();
+            byComboId.computeIfAbsent(comboId, __ -> new ArrayList<>()).add(cp);
+        }
+
+        return combos.stream()
+                .map(combo -> mapComboToDto(combo, byComboId.getOrDefault(combo.getId(), List.of())))
+                .collect(Collectors.toList());
     }
 }

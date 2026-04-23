@@ -46,25 +46,38 @@ const ReporteGanancias = () => {
         fechaFin: moment(fechaFin).format("YYYY-MM-DDTHH:mm:ss")
       };
 
-      const [gananciasRes, ingresosRes, gastosRes, transaccionesRes] = await Promise.all([
+      const fetchMovimientosRango = async () => {
+        const all = [];
+        let page = 0;
+        const size = 100;
+        // Límite defensivo para evitar bucles infinitos
+        const maxPages = 200;
+        while (page < maxPages) {
+          const res = await api.get(`${API_BASE_URL}/movimientosCaja`, {
+            params: { page, size, fechaInicio: params.fechaInicio, fechaFin: params.fechaFin },
+          });
+          const content = Array.isArray(res.data?.content) ? res.data.content : [];
+          const total = typeof res.data?.totalElements === 'number' ? res.data.totalElements : content.length;
+          all.push(...content);
+          if (all.length >= total || content.length === 0) break;
+          page += 1;
+        }
+        return all;
+      };
+
+      const [gananciasRes, ingresosRes, gastosRes, transacciones] = await Promise.all([
         api.get(`${API_BASE_URL}/reportes/ganancias`, { params }),
         api.get(`${API_BASE_URL}/reportes/ingresos`, { params }),
         api.get(`${API_BASE_URL}/reportes/egresos`, { params }),
-        api.get(`${API_BASE_URL}/movimientosCaja`)
+        fetchMovimientosRango()
       ]);
 
       setGanancias(gananciasRes.data);
       setIngresos(ingresosRes.data);
       setGastos(gastosRes.data);
 
-      const transaccionesFiltradas = transaccionesRes.data
-        .filter(t => {
-          const fechaTrans = new Date(t.fecha);
-          return fechaTrans >= fechaInicio && fechaTrans <= fechaFin;
-        })
-        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-      setTransacciones(transaccionesFiltradas);
+      const transaccionesOrdenadas = [...transacciones].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      setTransacciones(transaccionesOrdenadas);
     } catch (err) {
       setError('Error al obtener los datos. Verifica la conexión con el servidor.');
       console.error('Error fetching data:', err);

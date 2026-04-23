@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,11 @@ public class ProductoServiceImpl implements IProductoService {
     @Override
     public List<Producto> findAll() {
         return (List<Producto>) productoRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Producto> findAll(Pageable pageable) {
+        return productoRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)

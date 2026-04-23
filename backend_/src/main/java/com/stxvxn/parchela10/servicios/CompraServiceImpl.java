@@ -1,8 +1,11 @@
 package com.stxvxn.parchela10.servicios;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -102,6 +105,17 @@ public class CompraServiceImpl implements ICompraService {
     @Override
     public List<Compra> obtenerCompras() {
         return (List<Compra>) compraRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Compra> obtenerCompras(Pageable pageable) {
+        return compraRepository.findAll(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Compra> obtenerComprasFiltrado(Boolean soloAnuladas, LocalDateTime inicio, LocalDateTime fin,
+            Pageable pageable) {
+        return compraRepository.findFiltrado(soloAnuladas, inicio, fin, pageable);
     }
 
     @Transactional

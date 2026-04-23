@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { getWebSocketSockJsUrl } from '../api';
 
 const useWebSocket = (onMessage) => {
     const clientRef = useRef(null);
@@ -9,7 +10,7 @@ const useWebSocket = (onMessage) => {
     useEffect(() => {
         console.log("Iniciando conexión WebSocket...");
         
-        const socket = new SockJS('http://localhost:9090/ws');
+        const socket = new SockJS(getWebSocketSockJsUrl());
         const stompClient = new Client({
             webSocketFactory: () => socket,
             reconnectDelay: 5000,

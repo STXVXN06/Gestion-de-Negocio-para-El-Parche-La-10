@@ -11,6 +11,10 @@ const { RangePicker } = DatePicker;
 export default function ListadoCompras() {
   const urlBase = '/api/compras';
   const [compras, setCompras] = useState([]);
+  const [totalCompras, setTotalCompras] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1); // antd usa 1-based
+  const [pageSize, setPageSize] = useState(8);
   const [showModal, setShowModal] = useState(false);
   const [tiposCompra] = useState(['INGREDIENTE', 'ASEO', 'MATERIALES', 'UTENSILIOS', 'OTROS']);
   const [ingredientes, setIngredientes] = useState([]);
@@ -18,13 +22,38 @@ export default function ListadoCompras() {
   const [rangoFechas, setRangoFechas] = useState([]);
 
   useEffect(() => {
-    cargarCompras();
     cargarIngredientes();
   }, []);
 
-  const cargarCompras = async () => {
-    const resultado = await api.get(urlBase);
-    setCompras(resultado.data);
+  useEffect(() => {
+    cargarCompras(page, pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize]);
+
+  // Si cambian filtros, volvemos a la primera página
+  useEffect(() => {
+    setPage(1);
+  }, [filtroEstado, rangoFechas]);
+
+  const cargarCompras = async (nextPage = 1, nextPageSize = pageSize) => {
+    setLoading(true);
+    try {
+      const params = { page: Math.max(0, nextPage - 1), size: nextPageSize };
+
+      // Filtros server-side
+      if (filtroEstado && filtroEstado !== 'TODAS') {
+        params.estado = filtroEstado;
+      }
+      const [start, end] = rangoFechas || [];
+      if (start) params.fechaInicio = moment(start).startOf('day').format('YYYY-MM-DDTHH:mm:ss');
+      if (end) params.fechaFin = moment(end).endOf('day').format('YYYY-MM-DDTHH:mm:ss');
+
+      const resultado = await api.get(`${urlBase}/page`, { params });
+      setCompras(resultado.data?.content ?? []);
+      setTotalCompras(resultado.data?.totalElements ?? 0);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const cargarIngredientes = async () => {
@@ -35,29 +64,13 @@ export default function ListadoCompras() {
   const eliminarCompra = async (id) => {
     if (window.confirm('¿Está seguro de anular esta compra?')) {
       await api.patch(`${urlBase}/${id}`);
-      cargarCompras();
+      cargarCompras(page, pageSize);
     }
   };
 
   const handleRangoFechas = (dates) => {
     setRangoFechas(dates || []);
   };
-
-  const filteredCompras = compras
-    .filter(compra => {
-      const [start, end] = rangoFechas;
-      const fechaCompra = moment(compra.fecha);
-
-      const cumpleFecha = (!start || fechaCompra.isSameOrAfter(start, 'day')) &&
-        (!end || fechaCompra.isSameOrBefore(end, 'day'));
-
-      const cumpleEstado = filtroEstado === 'TODAS' ||
-        (filtroEstado === 'ACTIVAS' && compra.estado !== 'ANULADA') ||
-        (filtroEstado === 'ANULADAS' && compra.estado === 'ANULADA');
-
-      return cumpleFecha && cumpleEstado;
-    })
-    .sort((a, b) => moment(b.fecha) - moment(a.fecha));
 
   return (
     <div className="container">
@@ -91,9 +104,19 @@ export default function ListadoCompras() {
 
       {/* Tabla de compras */}
       <Table
-        dataSource={filteredCompras}
+        dataSource={compras}
         rowKey="id"
-        pagination={{ pageSize: 8 }}
+        loading={loading}
+        pagination={{
+          current: page,
+          pageSize,
+          total: totalCompras,
+          showSizeChanger: true,
+          onChange: (nextPage, nextPageSize) => {
+            setPage(nextPage);
+            setPageSize(nextPageSize);
+          }
+        }}
         scroll={{ x: true }}
       >
         <Column
@@ -175,7 +198,7 @@ export default function ListadoCompras() {
         handleClose={() => setShowModal(false)}
         tipos={tiposCompra}
         ingredientes={ingredientes}
-        onSave={cargarCompras}
+        onSave={() => cargarCompras(page, pageSize)}
       />
     </div>
   );

@@ -3,8 +3,10 @@ package com.stxvxn.parchela10.servicios;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,46 +80,39 @@ public class ReporteServiceImpl implements IReporteService {
 
     @Override
     public List<ProductoVentaDTO> obtenerProductosMasVendidos(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
-        // Obtener pedidos ENTREGADOS en el rango de fechas
         List<Pedido> pedidos = pedidoRepository.findByEstadoAndFechaBetween("ENTREGADO", fechaInicio, fechaFin);
-
-        // Mapa para acumular ventas por producto
-        Map<Long, ProductoVentaDTO> ventasMap = new HashMap<>();
-
-        // Procesar productos individuales
-        for (Pedido pedido : pedidos) {
-            List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(pedido.getId());
-            for (PedidoProducto pp : productos) {
-                Producto producto = pp.getProducto();
-                Long cantidad = pp.getCantidad().longValue();
-
-                ProductoVentaDTO dto = ventasMap.getOrDefault(producto.getId(),
-                        new ProductoVentaDTO(producto.getId(), producto.getNombre(), 0L));
-
-                dto.setCantidadVendida(dto.getCantidadVendida() + cantidad);
-                ventasMap.put(producto.getId(), dto);
-            }
+        if (pedidos.isEmpty()) {
+            return List.of();
         }
 
-        // Procesar productos en combos
+        List<Long> pedidoIds = pedidos.stream().map(Pedido::getId).toList();
+        Map<Long, List<PedidoProducto>> ppPorPedido = pedidoProductoRepository.findByPedidoIdIn(pedidoIds).stream()
+                .collect(Collectors.groupingBy(pp -> pp.getPedido().getId()));
+        Map<Long, List<PedidoCombo>> combosPorPedido = pedidoComboRepository.findByPedidoIdIn(pedidoIds).stream()
+                .collect(Collectors.groupingBy(pc -> pc.getPedido().getId()));
+
+        Set<Long> comboIds = combosPorPedido.values().stream()
+                .flatMap(List::stream)
+                .map(pc -> pc.getCombo().getId())
+                .collect(Collectors.toSet());
+        Map<Long, List<ComboProducto>> lineasCombo = agruparComboProductosPorComboIds(comboIds);
+
+        Map<Long, ProductoVentaDTO> ventasMap = new HashMap<>();
+
         for (Pedido pedido : pedidos) {
-            List<PedidoCombo> combos = pedidoComboRepository.findByPedidoId(pedido.getId());
-            for (PedidoCombo pc : combos) {
-                List<ComboProducto> productosCombo = comboProductoRepository.findByComboId(pc.getCombo().getId());
-                for (ComboProducto cp : productosCombo) {
-                    Producto producto = cp.getProducto();
-                    Long cantidad = cp.getCantidad() * pc.getCantidad().longValue();
-
-                    ProductoVentaDTO dto = ventasMap.getOrDefault(producto.getId(),
-                            new ProductoVentaDTO(producto.getId(), producto.getNombre(), 0L));
-
-                    dto.setCantidadVendida(dto.getCantidadVendida() + cantidad);
-                    ventasMap.put(producto.getId(), dto);
+            for (PedidoProducto pp : ppPorPedido.getOrDefault(pedido.getId(), List.of())) {
+                acumularVentaProducto(ventasMap, pp.getProducto(), pp.getCantidad().longValue());
+            }
+        }
+        for (Pedido pedido : pedidos) {
+            for (PedidoCombo pc : combosPorPedido.getOrDefault(pedido.getId(), List.of())) {
+                for (ComboProducto cp : lineasCombo.getOrDefault(pc.getCombo().getId(), List.of())) {
+                    long cantidad = cp.getCantidad() * pc.getCantidad().longValue();
+                    acumularVentaProducto(ventasMap, cp.getProducto(), cantidad);
                 }
             }
         }
 
-        // Ordenar por cantidad descendente y limitar a TOP 10
         return ventasMap.values().stream()
                 .sorted((a, b) -> b.getCantidadVendida().compareTo(a.getCantidadVendida()))
                 .limit(10)
@@ -126,65 +121,74 @@ public class ReporteServiceImpl implements IReporteService {
 
     @Override
     public List<IngredienteUsoDTO> obtenerIngredientesUtilizados(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
-        // Obtener pedidos ENTREGADOS en el rango de fechas
         List<Pedido> pedidos = pedidoRepository.findByEstadoAndFechaBetween("ENTREGADO", fechaInicio, fechaFin);
+        List<Desperdicio> desperdicios = desperdicioRepository.findByFechaBetween(fechaInicio, fechaFin);
 
-        // Mapa para acumular uso de ingredientes
         Map<Long, IngredienteUsoDTO> usoMap = new HashMap<>();
+        Set<Long> productoIds = new HashSet<>();
 
-        // 1. Procesar productos individuales de pedidos
-        for (Pedido pedido : pedidos) {
-            List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(pedido.getId());
-            for (PedidoProducto pp : productos) {
-                List<ProductoIngrediente> ingredientes = productoIngredienteRepository
-                        .findByProductoId(pp.getProducto().getId());
-
-                for (ProductoIngrediente pi : ingredientes) {
-                    agregarUsoIngrediente(usoMap, pi.getIngrediente(), pi.getCantidadNecesaria() * pp.getCantidad());
-                }
+        for (Desperdicio d : desperdicios) {
+            if (d.getProducto() != null && d.getCantidadProducto() != null) {
+                productoIds.add(d.getProducto().getId());
             }
         }
 
-        // 2. Procesar combos de pedidos
-        for (Pedido pedido : pedidos) {
-            List<PedidoCombo> combos = pedidoComboRepository.findByPedidoId(pedido.getId());
-            for (PedidoCombo pc : combos) {
-                List<ComboProducto> productosCombo = comboProductoRepository.findByComboId(pc.getCombo().getId());
-                for (ComboProducto cp : productosCombo) {
-                    List<ProductoIngrediente> ingredientes = productoIngredienteRepository
-                            .findByProductoId(cp.getProducto().getId());
+        Map<Long, List<PedidoProducto>> ppPorPedido = Map.of();
+        Map<Long, List<PedidoCombo>> combosPorPedido = Map.of();
+        Map<Long, List<ComboProducto>> lineasCombo = Map.of();
+        List<Long> pedidoIds = List.of();
 
-                    for (ProductoIngrediente pi : ingredientes) {
-                        double cantidadUsada = pi.getCantidadNecesaria() * cp.getCantidad() * pc.getCantidad();
-                        agregarUsoIngrediente(usoMap, pi.getIngrediente(), cantidadUsada);
+        if (!pedidos.isEmpty()) {
+            pedidoIds = pedidos.stream().map(Pedido::getId).toList();
+            ppPorPedido = pedidoProductoRepository.findByPedidoIdIn(pedidoIds).stream()
+                    .collect(Collectors.groupingBy(pp -> pp.getPedido().getId()));
+            combosPorPedido = pedidoComboRepository.findByPedidoIdIn(pedidoIds).stream()
+                    .collect(Collectors.groupingBy(pc -> pc.getPedido().getId()));
+            Set<Long> comboIds = combosPorPedido.values().stream()
+                    .flatMap(List::stream)
+                    .map(pc -> pc.getCombo().getId())
+                    .collect(Collectors.toSet());
+            lineasCombo = agruparComboProductosPorComboIds(comboIds);
+            ppPorPedido.values().stream().flatMap(List::stream)
+                    .forEach(pp -> productoIds.add(pp.getProducto().getId()));
+            lineasCombo.values().stream().flatMap(List::stream)
+                    .forEach(cp -> productoIds.add(cp.getProducto().getId()));
+        }
+
+        Map<Long, List<ProductoIngrediente>> ingPorProducto = cargarIngredientesPorProductoIds(productoIds);
+
+        if (!pedidos.isEmpty()) {
+            for (Pedido pedido : pedidos) {
+                for (PedidoProducto pp : ppPorPedido.getOrDefault(pedido.getId(), List.of())) {
+                    for (ProductoIngrediente pi : ingPorProducto.getOrDefault(pp.getProducto().getId(), List.of())) {
+                        agregarUsoIngrediente(usoMap, pi.getIngrediente(), pi.getCantidadNecesaria() * pp.getCantidad());
                     }
                 }
             }
-        }
-
-        // 3. Procesar adiciones de pedidos
-        for (Pedido pedido : pedidos) {
-            List<AdicionPedido> adiciones = adicionPedidoRepository.findByPedidoId(pedido.getId());
-            for (AdicionPedido adicion : adiciones) {
-                // Convertir Integer a Double
+            for (Pedido pedido : pedidos) {
+                for (PedidoCombo pc : combosPorPedido.getOrDefault(pedido.getId(), List.of())) {
+                    for (ComboProducto cp : lineasCombo.getOrDefault(pc.getCombo().getId(), List.of())) {
+                        for (ProductoIngrediente pi : ingPorProducto.getOrDefault(cp.getProducto().getId(),
+                                List.of())) {
+                            double cantidadUsada = pi.getCantidadNecesaria() * cp.getCantidad() * pc.getCantidad();
+                            agregarUsoIngrediente(usoMap, pi.getIngrediente(), cantidadUsada);
+                        }
+                    }
+                }
+            }
+            List<AdicionPedido> adicionesTodas = adicionPedidoRepository.findByPedidoIdInWithIngrediente(pedidoIds);
+            for (AdicionPedido adicion : adicionesTodas) {
                 agregarUsoIngrediente(usoMap, adicion.getIngrediente(), adicion.getCantidad().doubleValue());
             }
         }
 
-        // 4. Procesar desperdicios (tanto de ingredientes como de productos)
-        List<Desperdicio> desperdicios = desperdicioRepository.findByFechaBetween(fechaInicio, fechaFin);
         for (Desperdicio desperdicio : desperdicios) {
-            // Desperdicio de ingrediente directo
             if (desperdicio.getIngrediente() != null && desperdicio.getCantidadIngrediente() != null) {
                 agregarUsoIngrediente(usoMap, desperdicio.getIngrediente(), desperdicio.getCantidadIngrediente());
             }
-
-            // Desperdicio de producto (sumar sus ingredientes)
             if (desperdicio.getProducto() != null && desperdicio.getCantidadProducto() != null) {
-                List<ProductoIngrediente> ingredientes = productoIngredienteRepository
-                        .findByProductoId(desperdicio.getProducto().getId());
-
-                for (ProductoIngrediente pi : ingredientes) {
+                for (ProductoIngrediente pi : ingPorProducto.getOrDefault(desperdicio.getProducto().getId(),
+                        List.of())) {
                     double cantidadTotal = pi.getCantidadNecesaria() * desperdicio.getCantidadProducto();
                     agregarUsoIngrediente(usoMap, pi.getIngrediente(), cantidadTotal);
                 }
@@ -192,6 +196,29 @@ public class ReporteServiceImpl implements IReporteService {
         }
 
         return new ArrayList<>(usoMap.values());
+    }
+
+    private static void acumularVentaProducto(Map<Long, ProductoVentaDTO> ventasMap, Producto producto, long cantidad) {
+        ProductoVentaDTO dto = ventasMap.getOrDefault(producto.getId(),
+                new ProductoVentaDTO(producto.getId(), producto.getNombre(), 0L));
+        dto.setCantidadVendida(dto.getCantidadVendida() + cantidad);
+        ventasMap.put(producto.getId(), dto);
+    }
+
+    private Map<Long, List<ComboProducto>> agruparComboProductosPorComboIds(Set<Long> comboIds) {
+        if (comboIds == null || comboIds.isEmpty()) {
+            return Map.of();
+        }
+        return comboProductoRepository.findByComboIds(new ArrayList<>(comboIds)).stream()
+                .collect(Collectors.groupingBy(cp -> cp.getCombo().getId()));
+    }
+
+    private Map<Long, List<ProductoIngrediente>> cargarIngredientesPorProductoIds(Set<Long> productoIds) {
+        if (productoIds == null || productoIds.isEmpty()) {
+            return Map.of();
+        }
+        return productoIngredienteRepository.findByProductoIdInWithDetails(new ArrayList<>(productoIds)).stream()
+                .collect(Collectors.groupingBy(pi -> pi.getProducto().getId()));
     }
 
     // Método auxiliar actualizado para manejar Double

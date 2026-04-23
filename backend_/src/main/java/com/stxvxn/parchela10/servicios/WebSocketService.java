@@ -1,9 +1,12 @@
 package com.stxvxn.parchela10.servicios;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
+import com.stxvxn.parchela10.DTO.PedidoResumenDTO;
 
 @Service
 public class WebSocketService {
@@ -14,14 +17,15 @@ public class WebSocketService {
         this.messagingTemplate = messagingTemplate;
     }
 
-    public void enviarNotificacionNuevoPedido() {
+    public void enviarNotificacionNuevoPedido(PedidoResumenDTO resumen) {
         try {
-            Map<String, String> mensaje = Map.of(
-                    "tipo", "NUEVO_PEDIDO",
-                    "mensaje", "Un empleado ha creado un nuevo pedido");
+            Map<String, Object> mensaje = new LinkedHashMap<>();
+            mensaje.put("tipo", "NUEVO_PEDIDO");
+            mensaje.put("mensaje", "Nuevo pedido #" + resumen.getId());
+            mensaje.put("pedido", resumen);
 
             messagingTemplate.convertAndSend("/topic/nuevos-pedidos", mensaje);
-            System.out.println("Notificación enviada: " + mensaje);
+            System.out.println("Notificación enviada (pedido " + resumen.getId() + ")");
         } catch (Exception e) {
             System.err.println("Error enviando notificación: " + e.getMessage());
             e.printStackTrace();

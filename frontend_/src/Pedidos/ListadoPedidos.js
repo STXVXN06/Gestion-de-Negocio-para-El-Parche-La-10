@@ -14,7 +14,8 @@ import {
   Tabs,
   Input,
   notification,
-  DatePicker
+  DatePicker,
+  Pagination
 } from 'antd';
 import {
   FilterOutlined,
@@ -37,13 +38,13 @@ import {
   ArrowLeftOutlined,
   BellOutlined
 } from '@ant-design/icons';
-import { parseISO } from 'date-fns'; // Eliminada importación innecesaria de 'es'
 import { NumericFormat } from 'react-number-format';
 import './ListadoPedidos.css';
 import api from '../api';
 import moment from 'moment';
 import useWebSocket from '../hooks/UseWebSocket';
 import notificationSound from '../assets/notificacion.mp3';
+import usePedidosPaginados from '../hooks/usePedidosPaginados';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -52,15 +53,25 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ListadoPedidos() {
   const navigate = useNavigate();
   const urlBase = '/api/pedidos';
-  const [todosPedidos, setTodosPedidos] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState(null);
-  const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [cargando, setCargando] = useState(true);
-  const [estadisticas, setEstadisticas] = useState({
-    entregados: 0,
-    pendientes: 0,
-    cancelados: 0,
-  });
+  const {
+    page,
+    pageSize,
+    totalElements,
+    estado: filtroEstado,
+    rangoFechas: filtroFecha,
+    items: pedidosResumen,
+    estadisticas,
+    detailsById,
+    loadingList: cargando,
+    loadingDetailById,
+    setEstado: setFiltroEstado,
+    setRangoFechas: setFiltroFecha,
+    setPage,
+    fetchList,
+    fetchStats,
+    ensureDetail,
+    tryPrependNuevoPedido,
+  } = usePedidosPaginados({ pageSizeDefault: 20 });
   const [modalVisible, setModalVisible] = useState(false);
   const [modalFacturaVisible, setModalFacturaVisible] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
@@ -85,6 +96,8 @@ export default function ListadoPedidos() {
   const notificationRef = useRef();
   notificationRef.current = notificationApi;
 
+  const wsReloadTimeoutRef = useRef(null);
+
   const handleWebSocketMessage = useCallback((message) => {
     console.log("Mensaje WebSocket recibido:", message);
 
@@ -108,52 +121,45 @@ export default function ListadoPedidos() {
       setNuevosPedidos(prev => prev + 1);
       setShowNotificationBadge(true);
 
-      // Recargar pedidos después de un breve delay
-      setTimeout(() => {
-        cargarPedidos();
-      }, 1000);
+      const prepended = message.pedido ? tryPrependNuevoPedido(message.pedido) : false;
+
+      if (wsReloadTimeoutRef.current) {
+        clearTimeout(wsReloadTimeoutRef.current);
+      }
+      wsReloadTimeoutRef.current = setTimeout(() => {
+        if (prepended) {
+          fetchStats();
+        } else if (page === 0 && (filtroEstado === 'todos' || filtroEstado === 'PENDIENTE')) {
+          fetchList();
+          fetchStats();
+        }
+      }, 800);
     } else {
       console.log("Mensaje recibido pero no es de tipo NUEVO_PEDIDO:", message);
     }
-  }, []);
+  }, [page, filtroEstado, fetchList, fetchStats, tryPrependNuevoPedido]);
 
 
   useWebSocket(handleWebSocketMessage);
 
-
-  // CORRECCIÓN: Usar useCallback para resolver dependencia de useEffect
-  const cargarPedidos = useCallback(async () => {
-    try {
-      setCargando(true);
-      const resultado = await api.get(urlBase);
-      setTodosPedidos(resultado.data);
-    } catch (error) {
-      console.error("Error cargando pedidos:", error);
-      notification.error({
-        message: 'Error',
-        description: 'No se pudieron cargar los pedidos. Intente nuevamente.',
-      });
-    } finally {
-      setCargando(false);
+  useEffect(() => () => {
+    if (wsReloadTimeoutRef.current) {
+      clearTimeout(wsReloadTimeoutRef.current);
     }
   }, []);
 
   useEffect(() => {
-    cargarPedidos();
-
-  }, [cargarPedidos]); // CORRECCIÓN: Añadida dependencia
-
-
-
-  useEffect(() => {
-    if (todosPedidos.length > 0) {
-      const entregados = todosPedidos.filter(p => p.estado === 'ENTREGADO').length;
-      const pendientes = todosPedidos.filter(p => p.estado === 'PENDIENTE').length;
-      const cancelados = todosPedidos.filter(p => p.estado === 'CANCELADO').length;
-
-      setEstadisticas({ entregados, pendientes, cancelados });
-    }
-  }, [todosPedidos]);
+    fetchList().catch((error) => {
+      console.error("Error cargando pedidos (paginado):", error);
+      notification.error({
+        message: 'Error',
+        description: 'No se pudieron cargar los pedidos. Intente nuevamente.',
+      });
+    });
+    fetchStats().catch((error) => {
+      console.error("Error cargando estadísticas:", error);
+    });
+  }, [fetchList, fetchStats]);
 
 
   const vuelto = useMemo(() => {
@@ -163,30 +169,9 @@ export default function ListadoPedidos() {
 
 
   const pedidosFiltrados = useMemo(() => {
-    return todosPedidos.filter(pedido => {
-      const fechaPedido = parseISO(pedido.fecha);
-
-      let cumpleFecha = true;
-      if (filtroFecha && filtroFecha[0] && filtroFecha[1]) {
-        const fechaInicio = filtroFecha[0].startOf('day');
-        const fechaFin = filtroFecha[1].endOf('day');
-        cumpleFecha = fechaPedido >= fechaInicio && fechaPedido <= fechaFin;
-      }
-      const cumpleEstado =
-        filtroEstado === 'todos' ||
-        pedido.estado === filtroEstado;
-
-      return cumpleFecha && cumpleEstado;
-    }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  }, [todosPedidos, filtroFecha, filtroEstado]);
-
-  const calcularEstadisticas = (pedidos) => {
-    const entregados = pedidos.filter(p => p.estado === 'ENTREGADO').length;
-    const pendientes = pedidos.filter(p => p.estado === 'PENDIENTE').length;
-    const cancelados = pedidos.filter(p => p.estado === 'CANCELADO').length;
-
-    setEstadisticas({ entregados, pendientes, cancelados });
-  };
+    // Ya viene filtrado desde el backend; solo orden defensivo.
+    return [...pedidosResumen].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  }, [pedidosResumen]);
 
   const cambiarEstado = async (idPedido, nuevoEstado, metodoPago = null) => {
     try {
@@ -195,12 +180,9 @@ export default function ListadoPedidos() {
         : `${urlBase}/${idPedido}/estado?estado=${nuevoEstado}`;
 
       await api.put(url);
-
-      setTodosPedidos(prev => prev.map(pedido =>
-        pedido.id === idPedido
-          ? { ...pedido, estado: nuevoEstado, metodoPago }
-          : pedido
-      ));
+      // Refrescar la página actual y las estadísticas (estado/pago pueden cambiar)
+      fetchList();
+      fetchStats();
 
       if (nuevoEstado === 'ENTREGADO') {
         setMetodoPagoSeleccionado(metodoPago);
@@ -227,7 +209,8 @@ export default function ListadoPedidos() {
   };
 
   const handleActualizarClick = () => {
-    cargarPedidos();
+    fetchList();
+    fetchStats();
     setNuevosPedidos(0);
     setShowNotificationBadge(false);
   };
@@ -529,6 +512,8 @@ export default function ListadoPedidos() {
     const { bg, border, icon, color } = getCardColor(pedido.estado);
     const fechaFormateada = moment(pedido.fecha).format('DD MMM YYYY - h:mm a');
     const isExpanded = expandedPedidoId === pedido.id;
+    const detalle = isExpanded ? detailsById[pedido.id] : null;
+    const cargandoDetalle = !!loadingDetailById[pedido.id];
 
     return (
       <Col
@@ -589,7 +574,21 @@ export default function ListadoPedidos() {
             <div className="detalles-container">
               <Button
                 type="link"
-                onClick={() => setExpandedPedidoId(isExpanded ? null : pedido.id)}
+                onClick={async () => {
+                  const nextId = isExpanded ? null : pedido.id;
+                  setExpandedPedidoId(nextId);
+                  if (!isExpanded) {
+                    try {
+                      await ensureDetail(pedido.id);
+                    } catch (e) {
+                      console.error("Error cargando detalle de pedido:", e);
+                      notification.error({
+                        message: 'Error',
+                        description: 'No se pudo cargar el detalle del pedido.',
+                      });
+                    }
+                  }
+                }}
                 className="detalles-btn"
               >
                 {isExpanded ? 'Ocultar detalles' : 'Ver detalles del pedido'}
@@ -598,9 +597,17 @@ export default function ListadoPedidos() {
 
               {isExpanded && (
                 <div className="detalles-expandidos">
-                  {pedido.productos && pedido.productos.length > 0 && renderProductos(pedido.productos)}
-                  {pedido.combos && pedido.combos.length > 0 && renderCombos(pedido.combos)}
-                  {pedido.adiciones && pedido.adiciones.length > 0 && renderAdiciones(pedido.adiciones)}
+                  {cargandoDetalle ? (
+                    <div className="loading-container">
+                      <Spin size="small" tip="Cargando detalle..." />
+                    </div>
+                  ) : (
+                    <>
+                      {detalle?.productos && detalle.productos.length > 0 && renderProductos(detalle.productos)}
+                      {detalle?.combos && detalle.combos.length > 0 && renderCombos(detalle.combos)}
+                      {detalle?.adiciones && detalle.adiciones.length > 0 && renderAdiciones(detalle.adiciones)}
+                    </>
+                  )}
                   {renderDesechables(pedido.cantidadP1, pedido.cantidadC1)}
                   {pedido.domicilio && (
                     <div className="domicilio-info">
@@ -718,7 +725,10 @@ export default function ListadoPedidos() {
 
       <Tabs
         activeKey={filtroEstado === 'todos' ? 'todos' : filtroEstado}
-        onChange={(key) => setFiltroEstado(key === 'todos' ? 'todos' : key)}
+        onChange={(key) => {
+          setExpandedPedidoId(null);
+          setFiltroEstado(key === 'todos' ? 'todos' : key);
+        }}
         className="estado-tabs"
       >
         <TabPane tab={<span className="tab-all">Todos</span>} key="todos">
@@ -745,6 +755,18 @@ export default function ListadoPedidos() {
               {pedidosFiltrados.map(renderPedido)}
             </Row>
           )}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+            <Pagination
+              current={page + 1}
+              pageSize={pageSize}
+              total={totalElements}
+              showSizeChanger={false}
+              onChange={(nextPage) => {
+                setExpandedPedidoId(null);
+                setPage(nextPage - 1);
+              }}
+            />
+          </div>
         </TabPane>
         <TabPane
           tab={
@@ -757,7 +779,7 @@ export default function ListadoPedidos() {
           key="PENDIENTE"
         >
           <Row gutter={[16, 16]} style={{ alignItems: 'flex-start' }}>
-            {pedidosFiltrados.filter(p => p.estado === 'PENDIENTE').map(renderPedido)}
+            {pedidosFiltrados.map(renderPedido)}
           </Row>
         </TabPane>
         <TabPane
@@ -771,10 +793,7 @@ export default function ListadoPedidos() {
           key="ENTREGADO"
         >
           <Row gutter={[16, 16]} style={{ alignItems: 'flex-start' }}>
-            {pedidosFiltrados
-              .filter(p => p.estado === 'ENTREGADO')
-              .map(renderPedido)
-            }
+            {pedidosFiltrados.map(renderPedido)}
           </Row>
         </TabPane>
         <TabPane
@@ -788,10 +807,7 @@ export default function ListadoPedidos() {
           key="CANCELADO"
         >
           <Row gutter={[16, 16]} style={{ alignItems: 'flex-start' }}>
-            {pedidosFiltrados
-              .filter(p => p.estado === 'CANCELADO')
-              .map(renderPedido)
-            }
+            {pedidosFiltrados.map(renderPedido)}
           </Row>
         </TabPane>
       </Tabs>

@@ -1,19 +1,27 @@
 package com.stxvxn.parchela10.servicios;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
+import com.stxvxn.parchela10.DTO.PedidoEstadisticasDTO;
+import com.stxvxn.parchela10.DTO.PedidoResumenDTO;
 import com.stxvxn.parchela10.entidades.AdicionPedido;
 import com.stxvxn.parchela10.entidades.Caja;
 import com.stxvxn.parchela10.entidades.ComboProducto;
@@ -38,6 +46,8 @@ import com.stxvxn.parchela10.repositorios.ProductoIngredienteRepository;
  */
 @Service
 public class PedidoServiceImpl implements IPedidoService {
+
+    private static final ZoneId ZONA_PEDIDOS = ZoneId.of("America/Bogota");
 
     @Autowired
     private PedidoRepository pedidoRepository;
@@ -136,12 +146,18 @@ public class PedidoServiceImpl implements IPedidoService {
             }
         }
 
+        Set<Long> comboIdsPlantilla = pedidoCombos.stream()
+                .map(pc -> pc.getCombo() != null ? pc.getCombo().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, List<ComboProducto>> comboProductosPorComboId = cargarComboProductosPorComboIds(comboIdsPlantilla);
+
         for (PedidoCombo pc : pedidoCombos) {
             pc.setPedido(pedidoGuardado);
             pedidoComboRepo.save(pc);
 
             // Restar ingredientes de los combos
-            List<ComboProducto> comboItems = comboProductoRepo.findByComboId(pc.getCombo().getId());
+            List<ComboProducto> comboItems = comboProductosPorComboId.getOrDefault(pc.getCombo().getId(), List.of());
             for (ComboProducto cp : comboItems) {
                 List<ProductoIngrediente> ingredientes = productoIngredienteRepository
                         .findByProductoId(cp.getProducto().getId());
@@ -181,7 +197,7 @@ public class PedidoServiceImpl implements IPedidoService {
     @Transactional(readOnly = true)
     @Override
     public List<Pedido> obtenerTodos() {
-        List<Pedido> pedidos = (List<Pedido>) pedidoRepository.findAll();
+        List<Pedido> pedidos = pedidoRepository.findAll();
         // Forzar carga de productos para cada pedido
         pedidos.forEach(pedido -> {
             List<PedidoProducto> productos = pedidoProductoRepository.findByPedidoId(pedido.getId());
@@ -227,9 +243,14 @@ public class PedidoServiceImpl implements IPedidoService {
 
                 // 2. Devolver ingredientes de combos (CORRECCIÓN CLAVE)
                 List<PedidoCombo> combosDelPedido = pedidoComboRepo.findByPedidoId(pedido.getId());
+                Set<Long> comboIdsCancel = combosDelPedido.stream()
+                        .map(pc -> pc.getCombo() != null ? pc.getCombo().getId() : null)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+                Map<Long, List<ComboProducto>> comboProductosCancel = cargarComboProductosPorComboIds(comboIdsCancel);
                 for (PedidoCombo pc : combosDelPedido) {
-                    // Obtener los productos que componen este combo
-                    List<ComboProducto> productosDelCombo = comboProductoRepo.findByComboId(pc.getCombo().getId());
+                    List<ComboProducto> productosDelCombo = comboProductosCancel.getOrDefault(pc.getCombo().getId(),
+                            List.of());
 
                     for (ComboProducto cp : productosDelCombo) {
                         // Obtener los ingredientes de cada producto del combo
@@ -427,8 +448,13 @@ public class PedidoServiceImpl implements IPedidoService {
 
         // Calcular ingredientes de combos
         List<PedidoCombo> combos = pedidoComboRepo.findByPedidoId(id);
+        Set<Long> comboIdsCalc = combos.stream()
+                .map(pc -> pc.getCombo() != null ? pc.getCombo().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, List<ComboProducto>> comboProductosCalc = cargarComboProductosPorComboIds(comboIdsCalc);
         for (PedidoCombo pc : combos) {
-            List<ComboProducto> productosCombo = comboProductoRepo.findByComboId(pc.getCombo().getId());
+            List<ComboProducto> productosCombo = comboProductosCalc.getOrDefault(pc.getCombo().getId(), List.of());
             for (ComboProducto cp : productosCombo) {
                 List<ProductoIngrediente> ingredientes = productoIngredienteRepository
                         .findByProductoId(cp.getProducto().getId());
@@ -467,39 +493,98 @@ public class PedidoServiceImpl implements IPedidoService {
                 "totalIngredientes", ingredientesADevolver.size());
     }
 
+    private Map<Long, List<ComboProducto>> cargarComboProductosPorComboIds(Set<Long> comboIds) {
+        if (comboIds == null || comboIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ComboProducto> rows = comboProductoRepo.findByComboIds(new ArrayList<>(comboIds));
+        return rows.stream().collect(Collectors.groupingBy(cp -> cp.getCombo().getId()));
+    }
+
     @Transactional(readOnly = true)
     @Override
-    public List<Pedido> obtenerTodosOptimizado() {
-        // Obtener pedidos con sus relaciones en menos consultas
-        List<Pedido> pedidos = (List<Pedido>) pedidoRepository.findAll();
+    public Page<PedidoResumenDTO> listarPedidosResumen(String estado, LocalDate desde, LocalDate hasta,
+            Pageable pageable) {
+        String estadoParam = normalizarEstadoFiltro(estado);
+        LocalDateTime desdeDt = aInicioDia(desde);
+        LocalDateTime hastaDt = aFinDia(hasta);
+        Page<Pedido> page = pedidoRepository.findResumenFiltrado(estadoParam, desdeDt, hastaDt, pageable);
+        return page.map(this::aResumenDto);
+    }
 
-        // Precargar todas las relaciones necesarias
-        List<Long> pedidoIds = pedidos.stream().map(Pedido::getId).collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    @Override
+    public PedidoEstadisticasDTO estadisticasPedidos(LocalDate desde, LocalDate hasta) {
+        LocalDateTime desdeDt = aInicioDia(desde);
+        LocalDateTime hastaDt = aFinDia(hasta);
+        List<Object[]> rows = pedidoRepository.countPedidosPorEstado(desdeDt, hastaDt);
+        long entregados = 0;
+        long pendientes = 0;
+        long cancelados = 0;
+        for (Object[] row : rows) {
+            if (row[0] == null || row[1] == null) {
+                continue;
+            }
+            String st = (String) row[0];
+            long c = ((Number) row[1]).longValue();
+            if ("ENTREGADO".equalsIgnoreCase(st)) {
+                entregados = c;
+            } else if ("PENDIENTE".equalsIgnoreCase(st)) {
+                pendientes = c;
+            } else if ("CANCELADO".equalsIgnoreCase(st)) {
+                cancelados = c;
+            }
+        }
+        return PedidoEstadisticasDTO.builder()
+                .entregados(entregados)
+                .pendientes(pendientes)
+                .cancelados(cancelados)
+                .build();
+    }
 
-        // Cargar todas las relaciones en batch
-        Map<Long, List<PedidoProducto>> productosPorPedido = pedidoProductoRepository
-                .findByPedidoIdIn(pedidoIds)
-                .stream()
-                .collect(Collectors.groupingBy(pp -> pp.getPedido().getId()));
+    private static String normalizarEstadoFiltro(String estado) {
+        if (estado == null) {
+            return null;
+        }
+        String t = estado.trim();
+        if (t.isEmpty() || "todos".equalsIgnoreCase(t)) {
+            return null;
+        }
+        return t;
+    }
 
-        Map<Long, List<PedidoCombo>> combosPorPedido = pedidoComboRepo
-                .findByPedidoIdIn(pedidoIds)
-                .stream()
-                .collect(Collectors.groupingBy(pc -> pc.getPedido().getId()));
+    private static LocalDateTime aInicioDia(LocalDate fecha) {
+        if (fecha == null) {
+            return null;
+        }
+        return fecha.atStartOfDay(ZONA_PEDIDOS).toLocalDateTime();
+    }
 
-        Map<Long, List<AdicionPedido>> adicionesPorPedido = adicionPedidoRepository
-                .findByPedidoIdIn(pedidoIds)
-                .stream()
-                .collect(Collectors.groupingBy(ap -> ap.getPedido().getId()));
+    private static LocalDateTime aFinDia(LocalDate fecha) {
+        if (fecha == null) {
+            return null;
+        }
+        return fecha.plusDays(1).atStartOfDay(ZONA_PEDIDOS).minusNanos(1).toLocalDateTime();
+    }
 
-        // Asignar relaciones a cada pedido
-        pedidos.forEach(pedido -> {
-            pedido.setPedidoProductos(productosPorPedido.getOrDefault(pedido.getId(), new ArrayList<>()));
-            pedido.setPedidoCombos(combosPorPedido.getOrDefault(pedido.getId(), new ArrayList<>()));
-            pedido.setAdiciones(adicionesPorPedido.getOrDefault(pedido.getId(), new ArrayList<>()));
-        });
+    private PedidoResumenDTO aResumenDto(Pedido p) {
+        return PedidoResumenDTO.builder()
+                .id(p.getId())
+                .fecha(p.getFecha())
+                .estado(p.getEstado())
+                .total(p.getTotal())
+                .detalles(p.getDetalles())
+                .cantidadP1(p.getCantidadP1())
+                .cantidadC1(p.getCantidadC1())
+                .domicilio(p.isDomicilio())
+                .costoDomicilio(p.getCostoDomicilio())
+                .metodoPago(p.getMetodoPago())
+                .build();
+    }
 
-        return pedidos;
+    @Override
+    public PedidoResumenDTO resumenDesdePedido(Pedido pedido) {
+        return aResumenDto(pedido);
     }
 
 }

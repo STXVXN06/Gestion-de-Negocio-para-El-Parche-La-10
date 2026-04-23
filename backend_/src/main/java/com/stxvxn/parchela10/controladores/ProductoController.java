@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -14,7 +15,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.stxvxn.parchela10.DTO.ProductoConIngredienteDTO;
 import com.stxvxn.parchela10.DTO.ProductoConIngredientesResponse;
@@ -94,6 +99,17 @@ public class ProductoController {
     @GetMapping
     public ResponseEntity<List<Producto>> obtenerTodos() {
         return ResponseEntity.ok(productoService.findAll());
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Page<Producto>> obtenerTodosPaginado(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
+    ) {
+        int p = page != null ? Math.max(0, page) : 0;
+        int s = size != null ? Math.min(100, Math.max(1, size)) : 20;
+        Pageable pageable = PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "id"));
+        return ResponseEntity.ok(productoService.findAll(pageable));
     }
 
     @GetMapping("/{id}")

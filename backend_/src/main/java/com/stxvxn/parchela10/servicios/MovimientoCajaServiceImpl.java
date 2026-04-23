@@ -2,9 +2,12 @@ package com.stxvxn.parchela10.servicios;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -99,6 +102,13 @@ public class MovimientoCajaServiceImpl implements IMovimientoCajaService {
     @Override
     public List<MovimientoCaja> obtenerPorTipo(String tipo) {
         return movimientoCajaRepository.findByTipoIgnoreCase(tipo);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MovimientoCaja> listarMovimientos(String tipo, LocalDateTime inicio, LocalDateTime fin,
+            Pageable pageable) {
+        String t = (tipo == null || tipo.isBlank()) ? null : tipo.trim();
+        return movimientoCajaRepository.findFiltrado(t, inicio, fin, pageable);
     }
 
     @Override

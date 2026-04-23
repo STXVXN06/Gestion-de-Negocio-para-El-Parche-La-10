@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -129,6 +131,11 @@ public class ComboServiceImpl implements IComboService {
     }
 
     @Transactional(readOnly = true)
+    public Page<Combo> listarCombosActivos(Pageable pageable) {
+        return comboRepository.findByActivoTrue(pageable);
+    }
+
+    @Transactional(readOnly = true)
     @Override
     public Optional<Combo> findById(Long id) {
         return comboRepository.findById(id);
@@ -137,6 +144,11 @@ public class ComboServiceImpl implements IComboService {
     @Override
     public List<ComboProducto> obtenerProductoDelCombo(Long comboId) {
         return comboProductoRepository.findByComboId(comboId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ComboProducto> obtenerProductosDeCombos(List<Long> comboIds) {
+        return comboProductoRepository.findByComboIds(comboIds);
     }
 
 }

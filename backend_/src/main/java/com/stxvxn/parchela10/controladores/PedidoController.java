@@ -1,5 +1,6 @@
 package com.stxvxn.parchela10.controladores;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,6 +11,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +33,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.stxvxn.parchela10.DTO.AdicionRequestDTO;
 import com.stxvxn.parchela10.DTO.AdicionResponseDTO;
 import com.stxvxn.parchela10.DTO.EditarPedidoDTO;
+import com.stxvxn.parchela10.DTO.PedidoEstadisticasDTO;
+import com.stxvxn.parchela10.DTO.PedidoResumenDTO;
 import com.stxvxn.parchela10.DTO.PedidoComboDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO;
 import com.stxvxn.parchela10.DTO.PedidoConProductosDTO.ComboEnPedido;
@@ -42,6 +50,7 @@ import com.stxvxn.parchela10.entidades.PedidoProducto;
 import com.stxvxn.parchela10.entidades.Producto;
 import com.stxvxn.parchela10.entidades.ProductoIngrediente;
 import com.stxvxn.parchela10.repositorios.AdicionPedidoRepository;
+import com.stxvxn.parchela10.repositorios.ComboProductoRepository;
 import com.stxvxn.parchela10.repositorios.PedidoComboRepository;
 import com.stxvxn.parchela10.servicios.ComboServiceImpl;
 import com.stxvxn.parchela10.servicios.EmailServiceImpl;
@@ -77,6 +86,9 @@ public class PedidoController {
 
     @Autowired
     private PedidoComboRepository pedidoComboRepo;
+
+    @Autowired
+    private ComboProductoRepository comboProductoRepository;
 
     @Autowired
     private AdicionPedidoRepository adicionPedidoRepository;
@@ -222,7 +234,8 @@ public class PedidoController {
         Optional<Pedido> pedidoCreado = pedidoService.crearPedido(pedido, pedidoProductos, pedidoCombos);
         if (pedidoCreado.isPresent()) {
             try {
-                webSocketService.enviarNotificacionNuevoPedido();
+                PedidoResumenDTO resumenWs = pedidoService.resumenDesdePedido(pedidoCreado.orElseThrow());
+                webSocketService.enviarNotificacionNuevoPedido(resumenWs);
                 System.out.println("Notificación WebSocket enviada después de crear pedido");
             } catch (Exception e) {
                 System.err.println("Error enviando notificación WebSocket: " + e.getMessage());
@@ -318,60 +331,50 @@ public class PedidoController {
     // return ResponseEntity.ok(dtos);
     // }
 
+    /**
+     * Listado paginado de resúmenes (siempre paginado). Si omites {@code page} o {@code size}, se usan
+     * {@code page=0} y {@code size=20}. Detalle completo: {@code GET /api/pedidos/{id}}.
+     * Filtros opcionales: {@code estado}, {@code desde}, {@code hasta} (ISO yyyy-MM-dd, día America/Bogota).
+     */
     @GetMapping
-    public ResponseEntity<List<PedidoConProductosDTO>> obtenerTodos() {
-        List<Pedido> pedidos = pedidoService.obtenerTodosOptimizado();
-        List<PedidoConProductosDTO> dtos = new ArrayList<>();
+    public ResponseEntity<Page<PedidoResumenDTO>> listarPedidos(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        int p = page != null ? Math.max(0, page) : 0;
+        int s = size != null ? Math.min(100, Math.max(1, size)) : 20;
+        Pageable pageable = PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "fecha"));
+        Page<PedidoResumenDTO> res = pedidoService.listarPedidosResumen(estado, desde, hasta, pageable);
+        return ResponseEntity.ok(res);
+    }
 
-        for (Pedido pedido : pedidos) {
-            PedidoConProductosDTO dto = convertirPedidoADTO(pedido);
-            dtos.add(dto);
+    /**
+     * Conteos por estado (mismos filtros de fecha que el listado resumen). Requiere fila en {@code routes}
+     * para {@code GET /api/pedidos/estadisticas} — ver {@code backend_/scripts/add-route-pedidos-estadisticas.sql}.
+     */
+    @GetMapping("/estadisticas")
+    public ResponseEntity<PedidoEstadisticasDTO> estadisticasPedidos(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return ResponseEntity.ok(pedidoService.estadisticasPedidos(desde, hasta));
+    }
+
+    /**
+     * Una consulta para todas las filas combo_producto de los combos indicados,
+     * agrupadas por id de combo (evita N+1 al mapear listas de pedidos).
+     */
+    private Map<Long, List<ComboProducto>> cargarPlantillasComboPorIds(Set<Long> comboIds) {
+        if (comboIds == null || comboIds.isEmpty()) {
+            return new HashMap<>();
         }
-        return ResponseEntity.ok(dtos);
+        List<ComboProducto> rows = comboProductoRepository.findByComboIds(new ArrayList<>(comboIds));
+        return rows.stream().collect(Collectors.groupingBy(cp -> cp.getCombo().getId()));
     }
 
-    private PedidoConProductosDTO convertirPedidoADTO(Pedido pedido) {
-        PedidoConProductosDTO dto = new PedidoConProductosDTO();
-        // Mapear propiedades básicas
-        dto.setId(pedido.getId());
-        dto.setFecha(pedido.getFecha());
-        dto.setEstado(pedido.getEstado());
-        dto.setTotal(pedido.getTotal());
-        dto.setDetalles(pedido.getDetalles());
-        dto.setCantidadC1(pedido.getCantidadC1());
-        dto.setCantidadP1(pedido.getCantidadP1());
-        dto.setDomicilio(pedido.isDomicilio());
-        dto.setCostoDomicilio(pedido.getCostoDomicilio());
-        dto.setMetodoPago(pedido.getMetodoPago());
-
-        // Mapear productos
-        dto.setProductos(pedido.getPedidoProductos().stream()
-                .map(this::mapearProducto)
-                .collect(Collectors.toList()));
-
-        // Mapear combos
-        dto.setCombos(pedido.getPedidoCombos().stream()
-                .map(this::mapearCombo)
-                .collect(Collectors.toList()));
-
-        // Mapear adiciones
-        dto.setAdiciones(pedido.getAdiciones().stream()
-                .map(this::mapearAdicion)
-                .collect(Collectors.toList()));
-
-        return dto;
-    }
-
-    private PedidoConProductosDTO.ProductoEnPedido mapearProducto(PedidoProducto pp) {
-        PedidoConProductosDTO.ProductoEnPedido p = new PedidoConProductosDTO.ProductoEnPedido();
-        p.setId(pp.getProducto().getId());
-        p.setNombre(pp.getProducto().getNombre());
-        p.setPrecio(pp.getProducto().getPrecio());
-        p.setCantidad(pp.getCantidad());
-        return p;
-    }
-
-    private PedidoConProductosDTO.ComboEnPedido mapearCombo(PedidoCombo pc) {
+    private PedidoConProductosDTO.ComboEnPedido mapearCombo(PedidoCombo pc,
+            Map<Long, List<ComboProducto>> plantillasPorComboId) {
         Combo combo = pc.getCombo();
         PedidoConProductosDTO.ComboEnPedido c = new PedidoConProductosDTO.ComboEnPedido();
         c.setId(combo.getId());
@@ -379,8 +382,7 @@ public class PedidoController {
         c.setPrecio(combo.getPrecio());
         c.setCantidad(pc.getCantidad());
 
-        // Mapear productos dentro del combo
-        List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
+        List<ComboProducto> productosCombo = plantillasPorComboId.getOrDefault(combo.getId(), List.of());
         c.setProductos(productosCombo.stream().map(cp -> {
             PedidoConProductosDTO.ProductoEnPedido p = new PedidoConProductosDTO.ProductoEnPedido();
             p.setId(cp.getProducto().getId());
@@ -391,18 +393,6 @@ public class PedidoController {
         }).collect(Collectors.toList()));
 
         return c;
-    }
-
-    private AdicionResponseDTO mapearAdicion(AdicionPedido a) {
-        AdicionResponseDTO dto = new AdicionResponseDTO();
-        dto.setId(a.getId());
-        dto.setIngredienteId(a.getIngrediente().getId());
-        dto.setNombreIngrediente(a.getIngrediente().getNombre());
-        dto.setCantidad(a.getCantidad());
-        dto.setPrecioAdicion(a.getIngrediente().getPrecioAdicion());
-        dto.setSubtotal(a.getIngrediente().getPrecioAdicion() * a.getCantidad());
-        dto.setAplicadoA(a.getAplicadoA());
-        return dto;
     }
 
     private List<PedidoConProductosDTO.ProductoEnPedido> mapearProductos(List<PedidoProducto> productos) {
@@ -417,27 +407,17 @@ public class PedidoController {
     }
 
     private List<PedidoConProductosDTO.ComboEnPedido> mapearCombos(List<PedidoCombo> combos) {
-        return combos.stream().map(pc -> {
-            Combo combo = pc.getCombo();
-            PedidoConProductosDTO.ComboEnPedido c = new PedidoConProductosDTO.ComboEnPedido();
-            c.setId(combo.getId());
-            c.setNombre(combo.getNombre());
-            c.setPrecio(combo.getPrecio());
-            c.setCantidad(pc.getCantidad());
-
-            // Productos dentro del combo
-            List<ComboProducto> productosCombo = comboService.obtenerProductoDelCombo(combo.getId());
-            c.setProductos(productosCombo.stream().map(cp -> {
-                PedidoConProductosDTO.ProductoEnPedido p = new PedidoConProductosDTO.ProductoEnPedido();
-                p.setId(cp.getProducto().getId());
-                p.setNombre(cp.getProducto().getNombre());
-                p.setPrecio(cp.getProducto().getPrecio());
-                p.setCantidad(cp.getCantidad());
-                return p;
-            }).toList());
-
-            return c;
-        }).toList();
+        if (combos == null || combos.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> comboIds = new HashSet<>();
+        for (PedidoCombo pc : combos) {
+            if (pc.getCombo() != null) {
+                comboIds.add(pc.getCombo().getId());
+            }
+        }
+        Map<Long, List<ComboProducto>> plantillas = cargarPlantillasComboPorIds(comboIds);
+        return combos.stream().map(pc -> mapearCombo(pc, plantillas)).collect(Collectors.toList());
     }
 
     private List<AdicionResponseDTO> mapearAdiciones(List<AdicionPedido> adiciones) {

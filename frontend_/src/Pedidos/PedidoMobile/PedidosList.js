@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Badge,
@@ -13,7 +13,8 @@ import {
   Tabs,
   Input,
   notification,
-  DatePicker
+  DatePicker,
+  Pagination
 } from 'antd';
 import {
   FilterOutlined,
@@ -24,13 +25,16 @@ import {
   CalendarOutlined,
   DownOutlined,
   UpOutlined,
-  ShoppingOutlined
+  ShoppingOutlined,
+  BellOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 import { NumericFormat } from 'react-number-format';
 import './PedidosList.css';
-import api from '../../api';
-import { hayPedidoEnCurso, limpiarPedidoEnCurso } from '../../utils/PedidoStorage';
+import { limpiarPedidoEnCurso } from '../../utils/PedidoStorage';
+import usePedidosPaginados from '../../hooks/usePedidosPaginados';
+import useWebSocket from '../../hooks/UseWebSocket';
+import notificationSound from '../../assets/notificacion.mp3';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -38,50 +42,83 @@ const { RangePicker } = DatePicker;
 
 export default function PedidosList() {
   const navigate = useNavigate();
-  const urlBase = '/api/pedidos';
-  const [todosPedidos, setTodosPedidos] = useState([]);
-  const [filtroFecha, setFiltroFecha] = useState(null);
-  const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [cargando, setCargando] = useState(true);
+  const {
+    page,
+    pageSize,
+    totalElements,
+    estado: filtroEstado,
+    rangoFechas: filtroFecha,
+    items: pedidosResumen,
+    detailsById,
+    loadingList: cargando,
+    loadingDetailById,
+    setEstado: setFiltroEstado,
+    setRangoFechas: setFiltroFecha,
+    setPage,
+    fetchList,
+    fetchStats,
+    ensureDetail,
+    tryPrependNuevoPedido,
+  } = usePedidosPaginados({ pageSizeDefault: 20 });
   const [expandedPedidoId, setExpandedPedidoId] = useState(null);
 
-  const cargarPedidos = useCallback(async () => {
-    try {
-      setCargando(true);
-      const resultado = await api.get(urlBase);
-      setTodosPedidos(resultado.data);
-    } catch (error) {
-      console.error("Error cargando pedidos:", error);
-      notification.error({
-        message: 'Error',
-        description: 'No se pudieron cargar los pedidos. Intente nuevamente.',
-      });
-    } finally {
-      setCargando(false);
+  const wsReloadTimeoutRef = useRef(null);
+
+  const handleWebSocketMessage = useCallback(
+    (message) => {
+      if (message && message.tipo === 'NUEVO_PEDIDO') {
+        const audio = new Audio(notificationSound);
+        audio.play().catch((e) => console.error('Error reproduciendo sonido:', e));
+
+        notification.info({
+          message: 'Nuevo pedido',
+          description: message.mensaje,
+          duration: 5,
+          placement: 'topRight',
+          icon: <BellOutlined style={{ color: '#108ee9' }} />,
+        });
+
+        const prepended = message.pedido ? tryPrependNuevoPedido(message.pedido) : false;
+
+        if (wsReloadTimeoutRef.current) {
+          clearTimeout(wsReloadTimeoutRef.current);
+        }
+        wsReloadTimeoutRef.current = setTimeout(() => {
+          if (prepended) {
+            fetchStats();
+          } else if (page === 0 && (filtroEstado === 'todos' || filtroEstado === 'PENDIENTE')) {
+            fetchList();
+            fetchStats();
+          }
+        }, 800);
+      }
+    },
+    [page, filtroEstado, fetchList, fetchStats, tryPrependNuevoPedido]
+  );
+
+  useWebSocket(handleWebSocketMessage);
+
+  useEffect(() => () => {
+    if (wsReloadTimeoutRef.current) {
+      clearTimeout(wsReloadTimeoutRef.current);
     }
   }, []);
 
   useEffect(() => {
-    cargarPedidos();
-  }, [cargarPedidos]);
+    fetchList().catch((error) => {
+      console.error("Error cargando pedidos (paginado):", error);
+      notification.error({
+        message: 'Error',
+        description: 'No se pudieron cargar los pedidos. Intente nuevamente.',
+      });
+    });
+    fetchStats().catch(() => {});
+  }, [fetchList, fetchStats]);
 
   const pedidosFiltrados = useMemo(() => {
-    return todosPedidos.filter(pedido => {
-      const fechaPedido = moment(pedido.fecha);
-
-      let cumpleFecha = true;
-      if (filtroFecha && filtroFecha[0] && filtroFecha[1]) {
-        const fechaInicio = filtroFecha[0].startOf('day');
-        const fechaFin = filtroFecha[1].endOf('day');
-        cumpleFecha = fechaPedido >= fechaInicio && fechaPedido <= fechaFin;
-      }
-      const cumpleEstado =
-        filtroEstado === 'todos' ||
-        pedido.estado === filtroEstado;
-
-      return cumpleFecha && cumpleEstado;
-    }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  }, [todosPedidos, filtroFecha, filtroEstado]);
+    // Ya viene filtrado desde el backend; solo orden defensivo.
+    return [...pedidosResumen].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  }, [pedidosResumen]);
 
   const getCardColor = (estado) => {
     switch (estado) {
@@ -254,22 +291,21 @@ export default function PedidosList() {
           </h5>
 
           <RangePicker
-            showTime={{
-              format: 'HH:mm',
-              defaultValue: [
-                moment().startOf('day'),
-                moment().endOf('day')
-              ]
+            format="YYYY-MM-DD"
+            onChange={(dates) => {
+              setExpandedPedidoId(null);
+              setFiltroFecha(dates);
             }}
-            format="YYYY-MM-DD HH:mm"
-            onChange={dates => setFiltroFecha(dates)}
             placeholder={['Fecha inicio', 'Fecha fin']}
             className="date-range-picker"
           />
 
           <Select
             value={filtroEstado}
-            onChange={setFiltroEstado}
+            onChange={(v) => {
+              setExpandedPedidoId(null);
+              setFiltroEstado(v);
+            }}
             suffixIcon={<InfoCircleOutlined />}
           >
             <Option value="todos">Todos los estados</Option>
@@ -282,7 +318,10 @@ export default function PedidosList() {
         <div className="action-buttons">
           <Button
             type="default"
-            onClick={cargarPedidos}
+            onClick={() => {
+              fetchList();
+              fetchStats();
+            }}
             icon={<ReloadOutlined />}
           >
             Actualizar
@@ -310,6 +349,8 @@ export default function PedidosList() {
     const { bg, border, icon, color } = getCardColor(pedido.estado);
     const fechaFormateada = moment(pedido.fecha).format('DD MMM YYYY - h:mm a');
     const isExpanded = expandedPedidoId === pedido.id;
+    const detalle = isExpanded ? detailsById[pedido.id] : null;
+    const cargandoDetalle = !!loadingDetailById[pedido.id];
 
     return (
       <Col
@@ -365,7 +406,21 @@ export default function PedidosList() {
             <div className="detalles-container">
               <Button
                 type="link"
-                onClick={() => setExpandedPedidoId(isExpanded ? null : pedido.id)}
+                onClick={async () => {
+                  const nextId = isExpanded ? null : pedido.id;
+                  setExpandedPedidoId(nextId);
+                  if (!isExpanded) {
+                    try {
+                      await ensureDetail(pedido.id);
+                    } catch (e) {
+                      console.error("Error cargando detalle de pedido:", e);
+                      notification.error({
+                        message: 'Error',
+                        description: 'No se pudo cargar el detalle del pedido.',
+                      });
+                    }
+                  }
+                }}
                 className="detalles-btn"
               >
                 {isExpanded ? 'Ocultar detalles' : 'Ver detalles del pedido'}
@@ -374,9 +429,17 @@ export default function PedidosList() {
 
               {isExpanded && (
                 <div className="detalles-expandidos">
-                  {pedido.productos && pedido.productos.length > 0 && renderProductos(pedido.productos)}
-                  {pedido.combos && pedido.combos.length > 0 && renderCombos(pedido.combos)}
-                  {pedido.adiciones && pedido.adiciones.length > 0 && renderAdiciones(pedido.adiciones)}
+                  {cargandoDetalle ? (
+                    <div className="loading-container">
+                      <Spin size="small" tip="Cargando detalle..." />
+                    </div>
+                  ) : (
+                    <>
+                      {detalle?.productos && detalle.productos.length > 0 && renderProductos(detalle.productos)}
+                      {detalle?.combos && detalle.combos.length > 0 && renderCombos(detalle.combos)}
+                      {detalle?.adiciones && detalle.adiciones.length > 0 && renderAdiciones(detalle.adiciones)}
+                    </>
+                  )}
                   {renderDesechables(pedido.cantidadP1, pedido.cantidadC1)}
                   {pedido.domicilio && (
                     <div className="domicilio-info">
@@ -444,7 +507,10 @@ export default function PedidosList() {
 
       <Tabs
         activeKey={filtroEstado === 'todos' ? 'todos' : filtroEstado}
-        onChange={(key) => setFiltroEstado(key === 'todos' ? 'todos' : key)}
+        onChange={(key) => {
+          setExpandedPedidoId(null);
+          setFiltroEstado(key === 'todos' ? 'todos' : key);
+        }}
         className="estado-tabs"
       >
         <TabPane tab="Todos" key="todos">
@@ -479,26 +545,32 @@ export default function PedidosList() {
               {pedidosFiltrados.map(renderPedido)}
             </Row>
           )}
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+            <Pagination
+              current={page + 1}
+              pageSize={pageSize}
+              total={totalElements}
+              showSizeChanger={false}
+              onChange={(nextPage) => {
+                setExpandedPedidoId(null);
+                setPage(nextPage - 1);
+              }}
+            />
+          </div>
         </TabPane>
         <TabPane tab="Pendientes" key="PENDIENTE">
           <Row gutter={[16, 16]}>
-            {pedidosFiltrados.filter(p => p.estado === 'PENDIENTE').map(renderPedido)}
+            {pedidosFiltrados.map(renderPedido)}
           </Row>
         </TabPane>
         <TabPane tab="Entregados" key="ENTREGADO">
           <Row gutter={[16, 16]}>
-            {pedidosFiltrados
-              .filter(p => p.estado === 'ENTREGADO')
-              .map(renderPedido)
-            }
+            {pedidosFiltrados.map(renderPedido)}
           </Row>
         </TabPane>
         <TabPane tab="Cancelados" key="CANCELADO">
           <Row gutter={[16, 16]}>
-            {pedidosFiltrados
-              .filter(p => p.estado === 'CANCELADO')
-              .map(renderPedido)
-            }
+            {pedidosFiltrados.map(renderPedido)}
           </Row>
         </TabPane>
       </Tabs>

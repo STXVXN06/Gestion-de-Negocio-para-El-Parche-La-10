@@ -490,7 +490,12 @@ const Estadisticas = () => {
                             }
                         >
                             <Table
-                                dataSource={filteredProductos.map((item, index) => ({ ...item, key: item.productoId, index }))}
+                                dataSource={filteredProductos.map((item, index) => ({
+                                    key: item.productoId,
+                                    index,
+                                    nombreProducto: item.nombreProducto,
+                                    cantidadVendida: item.cantidadVendida
+                                }))}
                                 columns={columnasProductos}
                                 pagination={{ pageSize: 10 }}
                                 size="middle"

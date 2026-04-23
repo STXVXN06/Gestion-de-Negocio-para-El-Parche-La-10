@@ -12,6 +12,15 @@ const getBaseURL = () => {
   }
 };
 
+/** URL absoluta del endpoint SockJS/STOMP (mismo origen que el API en producción). */
+export function getWebSocketSockJsUrl() {
+  const base = getBaseURL();
+  if (base.startsWith('http')) {
+    return `${base.replace(/\/$/, '')}/ws`;
+  }
+  return `${window.location.origin}/ws`;
+}
+
 const api = axios.create({
   baseURL: getBaseURL(), // URL de tu backend
 });

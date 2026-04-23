@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Pagination, Spin } from 'antd';
+import moment from 'moment';
 import api from '../api';
 
 
@@ -7,17 +9,36 @@ import api from '../api';
 export default function HistorialDesperdicios() {
   const [desperdicios, setDesperdicios] = useState([]);
   const [filtroFecha, setFiltroFecha] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1); // 1-based
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    cargarHistorial();
-  }, []);
+    cargarHistorial(page, pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize]);
 
-  const cargarHistorial = async () => {
+  // Si cambia el filtro, vuelve a la primera página
+  useEffect(() => {
+    setPage(1);
+  }, [filtroFecha]);
+
+  const cargarHistorial = async (nextPage = 1, nextPageSize = pageSize) => {
+    setLoading(true);
     try {
-      const response = await api.get('/api/desperdicios');
-      setDesperdicios(response.data);
+      const params = { page: Math.max(0, nextPage - 1), size: nextPageSize };
+      if (filtroFecha) {
+        params.fechaInicio = moment(filtroFecha, 'YYYY-MM-DD').startOf('day').format('YYYY-MM-DDTHH:mm:ss');
+        params.fechaFin = moment(filtroFecha, 'YYYY-MM-DD').endOf('day').format('YYYY-MM-DDTHH:mm:ss');
+      }
+      const response = await api.get('/api/desperdicios/page', { params });
+      setDesperdicios(response.data?.content ?? []);
+      setTotal(response.data?.totalElements ?? 0);
     } catch (error) {
       console.error('Error cargando historial:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,12 +66,14 @@ export default function HistorialDesperdicios() {
         </div>
       </div>
 
+      {loading && (
+        <div className="text-center my-3">
+          <Spin />
+        </div>
+      )}
+
       <div className="row">
-        {desperdicios
-          .filter(d => !filtroFecha || 
-            new Date(d.fecha).toISOString().split('T')[0] === filtroFecha)
-          .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)) // Orden descendente
-          .map((d, i) => (
+        {desperdicios.map((d, i) => (
             <div key={i} className="col-md-6 mb-3">
               <div className="card">
                 <div className="card-body">
@@ -94,6 +117,19 @@ export default function HistorialDesperdicios() {
               </div>
             </div>
           ))}
+      </div>
+
+      <div className="d-flex justify-content-center mt-4">
+        <Pagination
+          current={page}
+          pageSize={pageSize}
+          total={total}
+          showSizeChanger
+          onChange={(nextPage, nextPageSize) => {
+            setPage(nextPage);
+            setPageSize(nextPageSize);
+          }}
+        />
       </div>
     </div>
   );

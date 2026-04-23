@@ -117,14 +117,6 @@ export default function ListadoProductos() {
         bordered
       >
         <Column
-          title="ID"
-          dataIndex="id"
-          key="id"
-          width={80}
-          sorter={(a, b) => a.id - b.id}
-        />
-
-        <Column
           title="Nombre"
           dataIndex="nombre"
           key="nombre"

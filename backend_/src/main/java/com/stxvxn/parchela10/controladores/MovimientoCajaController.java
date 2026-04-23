@@ -2,8 +2,14 @@ package com.stxvxn.parchela10.controladores;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -15,7 +21,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.stxvxn.parchela10.DTO.MovimientoCajaListadoDTO;
 import com.stxvxn.parchela10.DTO.MovimientoManualDTO;
 import com.stxvxn.parchela10.entidades.MovimientoCaja;
 import com.stxvxn.parchela10.servicios.MovimientoCajaServiceImpl;
@@ -46,13 +54,30 @@ public class MovimientoCajaController {
 
     // Obtener todos los movimientos (filtrados por tipo si se requiere)
     @GetMapping
-    public ResponseEntity<List<MovimientoCaja>> listarMovimientos(
-            @RequestParam(required = false) String tipo
+    public ResponseEntity<Page<MovimientoCajaListadoDTO>> listarMovimientos(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin
     ) {
-        List<MovimientoCaja> movimientos = tipo != null 
-                ? movimientoCajaService.obtenerPorTipo(tipo)
-                : movimientoCajaService.findAll();
-        return ResponseEntity.ok(movimientos);
+        if (fechaInicio != null && fechaFin != null && fechaInicio.isAfter(fechaFin)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "fechaInicio no puede ser posterior a fechaFin");
+        }
+        int p = page != null ? Math.max(0, page) : 0;
+        int s = size != null ? Math.min(100, Math.max(1, size)) : 20;
+        Pageable pageable = PageRequest.of(p, s, Sort.by(Sort.Direction.DESC, "fecha"));
+        Page<MovimientoCaja> pageRes = movimientoCajaService.listarMovimientos(tipo, fechaInicio, fechaFin, pageable);
+        Page<MovimientoCajaListadoDTO> dtoPage = pageRes.map(m -> new MovimientoCajaListadoDTO(
+                m.getId(),
+                m.getTipo(),
+                m.getDescripcion(),
+                m.getMonto(),
+                m.getEstado(),
+                m.getFecha()
+        ));
+        return ResponseEntity.ok(dtoPage);
     }
 
     // Eliminar movimiento (anulación lógica)
